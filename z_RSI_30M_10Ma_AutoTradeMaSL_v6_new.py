@@ -108,7 +108,7 @@ while True:
         # RSI 
         data = pyupbit.get_ohlcv(ticker=coin_title, interval="minute15") 
         now_rsi = rsi(data, 14).iloc[-1] 
-        print(datetime.datetime.now(),"[ ", coin_title, " ] RSI : " , now_rsi)
+        #print(datetime.datetime.now(),"[ ", coin_title, " ] RSI : " , now_rsi)
         time.sleep(10)
 
         target_price = get_target_price(coin_title, 0.5)
