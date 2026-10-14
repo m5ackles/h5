@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
-<head> 
+<head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="referrer" content="strict-origin-when-cross-origin">
@@ -381,9 +381,16 @@
     box-shadow:0 10px 34px #000b;overflow:hidden;
   }
   .yt-dock.show{display:block;}
-  .yt-dock-head{display:flex;align-items:center;gap:8px;padding:6px 8px 6px 12px;font-size:11px;color:var(--muted);}
+  .yt-dock-head{
+    display:flex;align-items:center;gap:8px;padding:9px 8px 9px 12px;font-size:11px;color:var(--muted);
+    cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;
+  }
   .yt-dock-head b{color:var(--text);font-weight:600;}
   .yt-dock-head .hd-sp{flex:1;}
+  .yt-dock-head .hd-hint{font-size:10px;color:var(--muted-dim);}
+  .yt-dock.dragging{box-shadow:0 14px 44px #000d;}
+  .yt-dock.dragging .yt-dock-head{cursor:grabbing;}
+  .yt-dock.dragging .yt-wrap{pointer-events:none;}   /* 끄는 동안 영상 위를 지나가도 이벤트를 빼앗기지 않게 */
   .yt-dock-head button{
     background:var(--panel-raised);border:1px solid var(--border);color:var(--muted);
     border-radius:6px;font-size:10.5px;padding:3px 8px;
@@ -817,7 +824,7 @@
 </div>
 
 <div class="yt-dock" id="ytDock">
-  <div class="yt-dock-head"><b>▶ YouTube</b><span class="hd-sp"></span><button id="ytToggleBtn" type="button">접기</button></div>
+  <div class="yt-dock-head" title="끌어서 옮기기"><b>▶ YouTube</b><span class="hd-hint">⠿ 끌어서 이동</span><span class="hd-sp"></span><button id="ytToggleBtn" type="button">접기</button></div>
   <div class="yt-wrap" id="ytWrap"><div id="ytPlayer"></div></div>
   <div class="yt-note" id="ytNote"></div>
 </div>
@@ -1728,6 +1735,54 @@
     d.classList.toggle('collapsed');
     $('#ytToggleBtn').textContent = d.classList.contains('collapsed') ? '펼치기' : '접기';
   });
+
+  /* ---------- 유튜브 플레이어 드래그 이동 (헤더를 잡고 끌기) ---------- */
+  const ytDockEl = $('#ytDock');
+  const ytHead = ytDockEl.querySelector('.yt-dock-head');
+  let ytMoved = false;      // 직접 옮겼거나 저장된 위치를 불러온 경우 true
+  let ytDrag = null;
+
+  function ytClamp(){       // 화면 크기가 바뀌거나 접기/펼치기로 크기가 달라져도 화면 안에 유지
+    if(!ytMoved || !ytDockEl.classList.contains('show')) return;
+    const r = ytDockEl.getBoundingClientRect();
+    ytDockEl.style.left = Math.max(0, Math.min(window.innerWidth - r.width, r.left))+'px';
+    ytDockEl.style.top = Math.max(0, Math.min(window.innerHeight - r.height, r.top))+'px';
+  }
+  ytHead.addEventListener('pointerdown', e=>{
+    if(e.target.closest('button')) return;           // 접기 버튼은 드래그 대상이 아님
+    const r = ytDockEl.getBoundingClientRect();
+    ytDrag = { id:e.pointerId, dx:e.clientX - r.left, dy:e.clientY - r.top };
+    ytDockEl.style.left = r.left+'px'; ytDockEl.style.top = r.top+'px';
+    ytDockEl.style.right = 'auto'; ytDockEl.style.bottom = 'auto';
+    ytMoved = true;
+    try{ ytHead.setPointerCapture(e.pointerId); }catch(err){}
+    ytDockEl.classList.add('dragging');
+    e.preventDefault();
+  });
+  ytHead.addEventListener('pointermove', e=>{
+    if(!ytDrag || e.pointerId!==ytDrag.id) return;
+    const w = ytDockEl.offsetWidth, h = ytDockEl.offsetHeight;
+    ytDockEl.style.left = Math.max(0, Math.min(window.innerWidth - w, e.clientX - ytDrag.dx))+'px';
+    ytDockEl.style.top = Math.max(0, Math.min(window.innerHeight - h, e.clientY - ytDrag.dy))+'px';
+  });
+  function ytDragEnd(e){
+    if(!ytDrag || e.pointerId!==ytDrag.id) return;
+    ytDrag = null;
+    ytDockEl.classList.remove('dragging');
+    try{ localStorage.setItem('ytDockPos', JSON.stringify({ x:parseFloat(ytDockEl.style.left), y:parseFloat(ytDockEl.style.top) })); }catch(err){}
+  }
+  ytHead.addEventListener('pointerup', ytDragEnd);
+  ytHead.addEventListener('pointercancel', ytDragEnd);
+  try{                      // 지난번에 옮겨둔 위치 복원
+    const sp = JSON.parse(localStorage.getItem('ytDockPos') || 'null');
+    if(sp && typeof sp.x==='number' && typeof sp.y==='number'){
+      ytDockEl.style.left = sp.x+'px'; ytDockEl.style.top = sp.y+'px';
+      ytDockEl.style.right = 'auto'; ytDockEl.style.bottom = 'auto';
+      ytMoved = true;
+    }
+  }catch(err){}
+  if(window.ResizeObserver) new ResizeObserver(ytClamp).observe(ytDockEl);
+  window.addEventListener('resize', ytClamp);
 
   /* ---------- 진행 표시 · 탐색 ---------- */
   setInterval(()=>{
