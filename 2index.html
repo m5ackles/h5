@@ -1,0 +1,2245 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>ON AIR · 방송 콘솔</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0D16;
+    --panel:#10142399;
+    --panel-solid:#12162A;
+    --panel-raised:#161B32;
+    --border:#242B4A;
+    --border-soft:#1B2038;
+    --text:#E8EAF6;
+    --muted:#8B90AC;
+    --muted-dim:#5C6285;
+    --amber:#F2B84B;
+    --amber-dim:#8A6A2E;
+    --magenta:#FF3E7F;
+    --cyan:#34E2C6;
+    --danger:#FF5D5D;
+    --radius-lg:14px;
+    --radius-md:10px;
+    --radius-sm:6px;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;}
+  body{
+    background:
+      radial-gradient(1200px 600px at 12% -10%, #171B33 0%, transparent 60%),
+      radial-gradient(1000px 700px at 110% 10%, #1B1430 0%, transparent 55%),
+      var(--bg);
+    color:var(--text);
+    font-family:'Inter',system-ui,sans-serif;
+  }
+  ::selection{background:var(--amber);color:#1a1305;}
+  ::-webkit-scrollbar{width:9px;height:9px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:#2A3155;border-radius:10px;}
+  ::-webkit-scrollbar-thumb:hover{background:#3A4278;}
+
+  button{font-family:inherit;cursor:pointer;}
+  input,select,textarea{font-family:inherit;}
+  a{color:var(--cyan);}
+
+  .app{height:100vh;display:flex;flex-direction:column;}
+
+  /* ===== 상단바 ===== */
+  .topbar{
+    display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+    padding:10px 18px;
+    border-bottom:1px solid var(--border-soft);
+    background:linear-gradient(180deg,#0D1120,#0A0D16);
+    flex:0 0 auto;
+  }
+  .brand{display:flex;align-items:baseline;gap:8px;}
+  .brand .mark{
+    font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:17px;letter-spacing:.5px;
+    color:var(--amber);
+  }
+  .brand .sub{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--muted-dim);letter-spacing:1.5px;text-transform:uppercase;}
+
+  .onair{
+    display:flex;align-items:center;gap:8px;
+    padding:6px 12px;border-radius:999px;
+    border:1px solid var(--border);
+    background:var(--panel-raised);
+    font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1px;
+    color:var(--muted);
+  }
+  .onair .dot{width:8px;height:8px;border-radius:50%;background:var(--muted-dim);transition:.3s;}
+  .onair.live{color:var(--amber);border-color:#4A3A16;background:#1E1608;}
+  .onair.live .dot{background:var(--amber);box-shadow:0 0 10px 2px #F2B84B99;animation:pulse 1.4s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+
+  .topbar-spacer{flex:1;}
+
+  .clock{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);letter-spacing:.5px;}
+
+  .standby-toggle-top{
+    display:flex;align-items:center;gap:8px;
+    padding:6px 10px;border-radius:999px;border:1px solid var(--border);
+    background:var(--panel-raised);font-size:11.5px;color:var(--muted);
+  }
+  .switch{
+    --w:36px;--h:20px;
+    width:var(--w);height:var(--h);border-radius:999px;background:#20263F;
+    border:1px solid var(--border);position:relative;flex:0 0 auto;transition:.2s;
+  }
+  .switch::after{
+    content:'';position:absolute;top:1px;left:1px;width:16px;height:16px;border-radius:50%;
+    background:var(--muted-dim);transition:.2s;
+  }
+  .switch.on{background:#3A2A12;border-color:var(--amber-dim);}
+  .switch.on::after{transform:translateX(16px);background:var(--amber);box-shadow:0 0 6px #F2B84B99;}
+  .switch-btn{background:none;border:none;padding:0;display:flex;}
+
+  .fullstage-btn{
+    background:var(--panel-raised);border:1px solid var(--border);color:var(--muted);
+    padding:6px 12px;border-radius:8px;font-size:11.5px;display:flex;align-items:center;gap:6px;
+  }
+  .fullstage-btn:hover{color:var(--text);border-color:#3A4278;}
+
+  /* ===== 3분할 그리드 2.5 : 5 : 2.5 ===== */
+  .grid{
+    flex:1;min-height:0;
+    display:grid;
+    grid-template-columns:2.5fr 5fr 2.5fr;
+    gap:1px;
+    background:var(--border-soft);
+  }
+  .panel{background:var(--bg);min-width:0;min-height:0;display:flex;flex-direction:column;}
+
+  /* ===== 채팅 패널 (좌) ===== */
+  .chat-panel{padding:0;}
+  .panel-head{
+    padding:12px 16px 10px;border-bottom:1px solid var(--border-soft);
+    display:flex;align-items:center;justify-content:space-between;flex:0 0 auto;
+  }
+  .panel-head h2{
+    font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:600;
+    letter-spacing:.4px;margin:0;color:var(--text);
+    display:flex;align-items:center;gap:7px;
+  }
+  .panel-head h2 .tag{
+    font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--muted-dim);
+    border:1px solid var(--border);padding:1px 6px;border-radius:4px;letter-spacing:1px;
+  }
+  .chat-embed-wrap{flex:1;min-height:0;position:relative;}
+  .chat-embed-wrap iframe{width:100%;height:100%;border:0;background:#0D1120;}
+  .chat-demo{flex:1;min-height:0;display:flex;flex-direction:column;}
+  .chat-log{flex:1;min-height:0;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:9px;}
+  .chat-msg{font-size:12.5px;line-height:1.5;animation:msgIn .25s ease;}
+  @keyframes msgIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+  .chat-msg .name{font-weight:600;margin-right:6px;}
+  .chat-msg .name.c1{color:var(--amber);} .chat-msg .name.c2{color:var(--cyan);}
+  .chat-msg .name.c3{color:var(--magenta);} .chat-msg .name.c4{color:#8FB8FF;}
+  .chat-msg .txt{color:#C9CCE3;}
+  .chat-empty{color:var(--muted-dim);font-size:12px;text-align:center;padding:30px 14px;line-height:1.6;}
+  .chat-input-row{
+    display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--border-soft);flex:0 0 auto;
+  }
+  .chat-input-row input{
+    flex:1;background:var(--panel-raised);border:1px solid var(--border);border-radius:8px;
+    color:var(--text);padding:8px 10px;font-size:12.5px;outline:none;
+  }
+  .chat-input-row input:focus{border-color:var(--cyan);}
+  .chat-input-row button{
+    background:var(--amber);color:#1a1305;border:none;border-radius:8px;padding:0 14px;font-weight:600;font-size:12.5px;
+  }
+  .chat-hint{padding:8px 14px 12px;font-size:10.5px;color:var(--muted-dim);line-height:1.5;border-top:1px solid var(--border-soft);}
+
+  /* ===== 무대 패널 (중) ===== */
+  .stage-panel{background:#000;position:relative;}
+  .stage-frame{position:absolute;inset:0;overflow:hidden;background:#000;}
+  .media-layer{
+    position:absolute;inset:0;opacity:0;z-index:1;pointer-events:none;
+    transition:opacity .9s cubic-bezier(.22,.68,0,1), transform .9s cubic-bezier(.22,.68,0,1), filter .9s ease, clip-path .9s cubic-bezier(.22,.68,0,1);
+  }
+  .media-layer.active{opacity:1;z-index:2;}
+  .media-layer img, .media-layer video{width:100%;height:100%;object-fit:contain;object-position:center;background:#000;display:block;}
+  .stage-frame.reduced-motion .media-layer{transition:opacity .5s linear;}
+
+  #chromaCanvas, #spectrumCanvas{position:absolute;inset:0;width:100%;height:100%;z-index:3;pointer-events:none;}
+  #chromaCanvas{z-index:2;}
+
+  .stage-empty{
+    position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:10px;color:var(--muted-dim);text-align:center;padding:20px;
+  }
+  .stage-empty .icon{font-size:34px;opacity:.6;}
+  .stage-empty b{color:var(--muted);font-weight:600;font-size:13.5px;}
+  .stage-empty span{font-size:11.5px;max-width:280px;line-height:1.6;}
+
+  .standby-overlay{
+    position:absolute;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;
+    background:#000;opacity:0;pointer-events:none;transition:opacity .5s ease;
+  }
+  .standby-overlay.on{opacity:1;pointer-events:auto;}
+  .standby-overlay img{max-width:100%;max-height:100%;object-fit:contain;}
+  .standby-overlay .standby-label{
+    position:absolute;bottom:22px;left:50%;transform:translateX(-50%);
+    font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:2px;color:var(--amber);
+    border:1px solid var(--amber-dim);padding:5px 14px;border-radius:999px;background:#1a13058c;
+  }
+  .standby-overlay .standby-placeholder{color:var(--muted-dim);font-size:12px;text-align:center;}
+
+  .stage-hud{
+    position:absolute;left:0;right:0;bottom:0;z-index:7;
+    display:flex;align-items:center;gap:10px;
+    padding:10px 14px;
+    background:linear-gradient(0deg,#000000cc,transparent);
+    opacity:0;transition:opacity .25s ease;
+  }
+  .stage-frame:hover .stage-hud, .stage-hud.pinned{opacity:1;}
+  .hud-btn{
+    background:#00000066;border:1px solid #ffffff22;color:#fff;width:30px;height:30px;border-radius:8px;
+    display:flex;align-items:center;justify-content:center;font-size:13px;
+  }
+  .hud-btn:hover{background:#ffffff22;}
+  .hud-info{flex:1;min-width:0;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#cfd3e8;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .hud-right{display:flex;align-items:center;gap:8px;}
+
+  .stage-only .grid{grid-template-columns:0fr 1fr 0fr;}
+  .stage-only .chat-panel,.stage-only .settings-panel{display:none;}
+  /* 상단바는 숨기지 않고 최소화만 함 — 여기 있는 버튼이 유일한 탈출구라 완전히 숨기면 안 됨 */
+  .stage-only .topbar{padding:6px 12px;gap:10px;}
+  .stage-only .topbar .brand .sub{display:none;}
+  .stage-only .topbar .clock{display:none;}
+
+  .stage-exit-btn{
+    position:absolute;top:12px;right:12px;z-index:9;
+    background:#000000aa;border:1px solid #ffffff33;color:#fff;
+    padding:7px 12px;border-radius:8px;font-size:11.5px;display:none;align-items:center;gap:6px;
+  }
+  .stage-exit-btn:hover{background:#000000dd;}
+  .stage-only .stage-exit-btn{display:flex;}
+
+  /* ===== 설정 패널 (우) ===== */
+  .settings-panel{overflow-y:auto;}
+  .settings-panel .panel-head{position:sticky;top:0;background:var(--bg);z-index:2;}
+  .settings-scroll{padding:6px 0 40px;}
+
+  details.section{border-bottom:1px solid var(--border-soft);}
+  details.section > summary{
+    list-style:none;cursor:pointer;padding:12px 16px;display:flex;align-items:center;gap:9px;
+    font-size:12.5px;font-weight:600;color:var(--text);user-select:none;
+  }
+  details.section > summary::-webkit-details-marker{display:none;}
+  details.section > summary .chev{margin-left:auto;color:var(--muted-dim);font-size:10px;transition:transform .2s;}
+  details.section[open] > summary .chev{transform:rotate(90deg);}
+  details.section > summary .dot-ico{width:6px;height:6px;border-radius:2px;background:var(--muted-dim);}
+  details.section[open] > summary .dot-ico{background:var(--amber);}
+  .section-body{padding:2px 16px 16px;display:flex;flex-direction:column;gap:12px;}
+
+  .field{display:flex;flex-direction:column;gap:6px;}
+  .field label{font-size:11px;color:var(--muted);display:flex;justify-content:space-between;align-items:center;}
+  .field label .val{font-family:'JetBrains Mono',monospace;color:var(--cyan);font-size:10.5px;}
+
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+
+  select, .text-input{
+    background:var(--panel-raised);border:1px solid var(--border);color:var(--text);
+    padding:7px 9px;border-radius:8px;font-size:12px;outline:none;width:100%;
+  }
+  select:focus,.text-input:focus{border-color:var(--cyan);}
+
+  input[type=range]{
+    -webkit-appearance:none;width:100%;height:4px;border-radius:4px;background:#20263F;outline:none;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--amber);
+    border:2px solid #1a1305;cursor:pointer;margin-top:-5px;
+  }
+  input[type=color]{
+    -webkit-appearance:none;width:34px;height:28px;border:1px solid var(--border);border-radius:6px;
+    background:none;padding:2px;cursor:pointer;
+  }
+
+  .btn{
+    background:var(--panel-raised);border:1px solid var(--border);color:var(--text);
+    padding:8px 12px;border-radius:8px;font-size:11.5px;font-weight:500;display:flex;align-items:center;
+    justify-content:center;gap:6px;
+  }
+  .btn:hover{border-color:#3A4278;}
+  .btn.primary{background:var(--amber);border-color:var(--amber);color:#1a1305;font-weight:600;}
+  .btn.primary:hover{background:#F7C766;}
+  .btn.ghost{background:transparent;}
+  .btn.full{width:100%;}
+  .btn.danger{color:var(--danger);}
+  .btn.small{padding:6px 9px;font-size:10.5px;}
+
+  .btn-row{display:flex;gap:8px;}
+  .file-btn{position:relative;overflow:hidden;}
+  .file-btn input[type=file]{
+    position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;
+  }
+
+  .toggle-row{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+  .toggle-row .lbl{font-size:12px;color:var(--text);}
+  .toggle-row .desc{font-size:10.5px;color:var(--muted-dim);margin-top:1px;}
+
+  .pill-group{display:flex;flex-wrap:wrap;gap:6px;}
+  .pill{
+    padding:5px 10px;border-radius:999px;border:1px solid var(--border);background:var(--panel-raised);
+    font-size:10.5px;color:var(--muted);
+  }
+  .pill.active{border-color:var(--amber);color:var(--amber);background:#241a08;}
+
+  .status-line{font-size:10.5px;color:var(--muted-dim);font-family:'JetBrains Mono',monospace;}
+  .status-line.ok{color:var(--cyan);}
+  .folder-summary{
+    font-size:11px;color:var(--muted);background:var(--panel-raised);border:1px dashed var(--border);
+    border-radius:8px;padding:10px;line-height:1.6;
+  }
+  .folder-summary b{color:var(--text);}
+
+  .hint{font-size:10.5px;color:var(--muted-dim);line-height:1.55;}
+
+  input[type=checkbox]{accent-color:var(--amber);width:15px;height:15px;}
+
+  /* ===== 상단 미니 컨트롤 (언제든 일시정지/정지) ===== */
+  .mini-transport{
+    display:flex;align-items:center;gap:6px;flex:0 1 460px;min-width:0;
+    padding:4px 8px;border:1px solid var(--border);border-radius:999px;background:var(--panel-raised);
+  }
+  .mt-btn{
+    width:28px;height:28px;flex:0 0 auto;border-radius:50%;border:1px solid var(--border);
+    background:var(--panel-solid);color:var(--text);font-size:12px;padding:0;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .mt-btn:hover{border-color:#3A4278;}
+  .mt-btn.on{background:#3A2A12;border-color:var(--amber-dim);color:var(--amber);}
+  .mt-title{
+    flex:1;min-width:0;padding:0 6px;font-size:11.5px;color:var(--muted);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+
+  /* ===== 신청곡 대기열 ===== */
+  textarea.text-input{resize:vertical;min-height:58px;line-height:1.5;}
+  .q-now{
+    font-size:12px;color:var(--amber);background:var(--panel-raised);border:1px solid var(--border);
+    border-radius:8px;padding:8px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .q-seek{display:flex;align-items:center;gap:8px;}
+  .q-seek .status-line{flex:0 0 auto;}
+  .q-transport{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;}
+  .q-list{display:flex;flex-direction:column;gap:6px;max-height:320px;overflow-y:auto;padding-right:2px;}
+  .q-item{
+    display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;
+    padding:7px 8px;border:1px solid var(--border-soft);border-radius:8px;background:var(--panel-raised);
+  }
+  .q-item.cur{border-color:var(--amber);background:#241a08;}
+  .q-item.done{opacity:.5;}
+  .q-item.fail{border-color:#5A2A2A;}
+  .q-kind{
+    font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.5px;color:var(--cyan);
+    border:1px solid var(--border);border-radius:4px;padding:2px 5px;
+  }
+  .q-mid{min-width:0;}
+  .q-title{
+    font-size:12px;color:var(--text);line-height:1.4;overflow-wrap:anywhere;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  }
+  .q-meta{font-size:10px;color:var(--muted-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;}
+  .q-acts{display:flex;gap:4px;}
+  .q-ibtn{
+    width:24px;height:24px;border-radius:6px;border:1px solid var(--border);background:var(--panel-solid);
+    color:var(--muted);font-size:11px;padding:0;display:flex;align-items:center;justify-content:center;
+  }
+  .q-ibtn:hover{color:var(--text);border-color:#3A4278;}
+  .q-lyr{
+    margin-top:4px;font-size:10.5px;line-height:1.55;color:#9CA1BE;white-space:pre-wrap;overflow-wrap:anywhere;
+    cursor:pointer;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  }
+  .q-lyr.open{display:block;max-height:170px;overflow-y:auto;-webkit-line-clamp:unset;}
+  .q-lyrics{
+    display:none;white-space:pre-wrap;overflow-wrap:anywhere;max-height:150px;overflow-y:auto;
+    font-size:12px;line-height:1.7;color:#C9CCE3;background:var(--panel-raised);
+    border:1px solid var(--border-soft);border-radius:8px;padding:8px 10px;
+  }
+  .q-lyrics.show{display:block;}
+  .q-edit{
+    display:none;flex-direction:column;gap:8px;padding:10px;border:1px solid var(--amber-dim);
+    border-radius:10px;background:#1a1405;
+  }
+  .q-edit.show{display:flex;}
+  .q-edit-head{font-size:11px;color:var(--amber);}
+  .q-item.fail .q-meta{white-space:normal;color:#FF9D9D;}
+
+  /* 유튜브 플레이어: 설정 패널/전체화면 모드와 무관하게 항상 렌더링되는 고정 도크 */
+  .yt-dock{
+    position:fixed;right:16px;bottom:16px;width:300px;z-index:60;display:none;
+    background:var(--panel-solid);border:1px solid var(--border);border-radius:12px;
+    box-shadow:0 10px 34px #000b;overflow:hidden;
+  }
+  .yt-dock.show{display:block;}
+  .yt-dock-head{
+    display:flex;align-items:center;gap:8px;padding:9px 8px 9px 12px;font-size:11px;color:var(--muted);
+    cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;
+  }
+  .yt-dock-head b{color:var(--text);font-weight:600;}
+  .yt-dock-head .hd-sp{flex:1;}
+  .yt-dock-head .hd-hint{font-size:10px;color:var(--muted-dim);}
+  .yt-dock.dragging{box-shadow:0 14px 44px #000d;}
+  .yt-dock.dragging .yt-dock-head{cursor:grabbing;}
+  .yt-dock.dragging .yt-wrap{pointer-events:none;}   /* 끄는 동안 영상 위를 지나가도 이벤트를 빼앗기지 않게 */
+  .yt-dock-head button{
+    background:var(--panel-raised);border:1px solid var(--border);color:var(--muted);
+    border-radius:6px;font-size:10.5px;padding:3px 8px;
+  }
+  .yt-wrap{width:100%;height:200px;background:#000;}
+  .yt-wrap iframe{width:100%;height:100%;border:0;display:block;}
+  .yt-dock.collapsed .yt-wrap{position:fixed;left:-10000px;top:0;width:300px;height:200px;}  /* 접어도 화면 밖에서 계속 재생 */
+  .yt-note{padding:6px 12px 8px;font-size:10.5px;line-height:1.5;color:var(--amber);}
+  .yt-note:empty{display:none;}
+
+  .toast{
+    position:fixed;left:50%;top:14px;transform:translateX(-50%) translateY(-24px);z-index:90;
+    max-width:min(92vw,520px);padding:9px 14px;border-radius:10px;
+    background:#2A1A0A;border:1px solid var(--amber-dim);color:var(--amber);font-size:12px;line-height:1.5;
+    opacity:0;pointer-events:none;transition:opacity .25s ease, transform .25s ease;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+
+  @media (max-width:980px){
+    .mini-transport{order:10;flex:1 1 100%;}
+    .yt-dock{right:8px;bottom:8px;width:min(78vw,300px);}
+  }
+
+  @media (max-width:980px){
+    html,body{height:auto;}
+    body{overflow-y:auto;overflow-x:hidden;}
+    .app{height:auto;min-height:100vh;min-height:100dvh;}
+    .grid{
+      display:block;overflow:visible;background:none;
+    }
+    .panel{border-bottom:1px solid var(--border-soft);}
+    .stage-panel{height:58vh;min-height:340px;}
+    .chat-panel{height:48vh;min-height:280px;display:flex;flex-direction:column;}
+    .settings-panel{height:auto;overflow:visible;}
+    .settings-panel .panel-head{position:static;}
+    .stage-hud{opacity:1;} /* 모바일은 hover가 없으니 컨트롤 항상 표시 */
+    .stage-only .stage-panel{height:100vh;height:100dvh;}
+  }
+  /* 이 도구는 방송 진행자 본인이 직접 설정한 전환 효과를 항상 그대로 재생합니다.
+     OS의 "동작 줄이기" 설정이 켜져 있어도 여기서 고른 효과는 의도대로 보여야 하므로
+     prefers-reduced-motion에 의한 강제 무력화는 넣지 않습니다. */
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- ===== 상단바 ===== -->
+  <div class="topbar">
+    <div class="brand">
+      <span class="mark">◐ ONAIR</span>
+      <span class="sub">Broadcast Console</span>
+    </div>
+    <div class="onair" id="onairBadge"><span class="dot"></span><span id="onairText">STANDBY</span></div>
+    <div class="mini-transport" id="miniTransport">
+      <button class="mt-btn" id="mtPlay" title="재생 / 일시정지 (P)">▶</button>
+      <button class="mt-btn" id="mtStop" title="정지 (S)">⏹</button>
+      <button class="mt-btn" id="mtNext" title="다음 곡 (N)">⏭</button>
+      <button class="mt-btn" id="mtDuck" title="대화 모드: 볼륨 낮추기 (D)">🎙</button>
+      <div class="mt-title" id="mtTitle">재생 대기</div>
+    </div>
+    <div class="topbar-spacer"></div>
+    <div class="clock" id="clock">--:--:--</div>
+    <div class="standby-toggle-top">
+      방송준비중
+      <button class="switch-btn" id="standbyTopBtn" aria-label="방송준비중 전환"><span class="switch" id="standbySwitch"></span></button>
+    </div>
+    <button class="fullstage-btn" id="fullstageBtn" title="채팅·설정 패널을 숨기고 무대만 표시 (OBS 창 캡처용)">⛶ 무대 전체화면</button>
+  </div>
+
+  <div class="grid">
+
+    <!-- ===== 좌: 채팅 ===== -->
+    <aside class="panel chat-panel">
+      <div class="panel-head">
+        <h2>채팅 <span class="tag">CHAT</span></h2>
+      </div>
+      <div id="chatEmbedWrap" class="chat-embed-wrap" style="display:none;">
+        <iframe id="chatIframe" src="" title="채팅 임베드"></iframe>
+      </div>
+      <div id="chatDemo" class="chat-demo">
+        <div class="chat-log" id="chatLog">
+          <div class="chat-empty">아직 메시지가 없어요.<br>실시간 채팅 embed 주소를 오른쪽 설정에서 연결하거나,<br>아래 입력창으로 테스트 메시지를 보내보세요.</div>
+        </div>
+        <div class="chat-input-row">
+          <input type="text" id="chatInput" placeholder="테스트 메시지 입력 후 Enter">
+          <button id="chatSendBtn">보내기</button>
+        </div>
+      </div>
+      <div class="chat-hint">유튜브 라이브·치지직·트위치의 "채팅 embed" 주소를 설정 패널에 넣으면 실제 채팅창이 여기에 표시돼요.</div>
+    </aside>
+
+    <!-- ===== 중: 무대 ===== -->
+    <main class="panel stage-panel">
+      <div class="stage-frame" id="stageFrame">
+        <div class="media-layer" id="layerA"></div>
+        <div class="media-layer" id="layerB"></div>
+        <canvas id="chromaCanvas"></canvas>
+        <canvas id="spectrumCanvas"></canvas>
+
+        <button class="stage-exit-btn" id="stageExitBtn" title="전체화면 무대 모드 끄기 (Esc)">✕ 채팅·설정 다시 보기</button>
+
+        <div class="stage-empty" id="stageEmpty">
+          <div class="icon">🎬</div>
+          <b>재생할 미디어가 없어요</b>
+          <span>오른쪽 설정 &gt; 화면 소스에서 사진·영상이 들어있는 폴더를 선택하거나, 크로마키(웹캠) 모드로 전환하세요.</span>
+        </div>
+
+        <div class="standby-overlay" id="standbyOverlay">
+          <img id="standbyImg" style="display:none;">
+          <div class="standby-placeholder" id="standbyPlaceholder">방송준비중 · 대기화면 이미지가 설정되지 않았습니다<br><span style="font-size:10.5px">설정 &gt; 방송준비중 에서 이미지를 등록하세요</span></div>
+          <div class="standby-label">방송 준비중</div>
+        </div>
+
+        <div class="stage-hud" id="stageHud">
+          <button class="hud-btn" id="prevBtn" title="이전">⏮</button>
+          <button class="hud-btn" id="playPauseBtn" title="재생/정지">▶</button>
+          <button class="hud-btn" id="nextBtn" title="다음">⏭</button>
+          <div class="hud-info" id="hudInfo">대기중</div>
+          <div class="hud-right">
+            <button class="hud-btn" id="hudFullscreenBtn" title="전체화면">⛶</button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- ===== 우: 설정 ===== -->
+    <aside class="panel settings-panel">
+      <div class="panel-head">
+        <h2>세부 설정 <span class="tag">SETTINGS</span></h2>
+      </div>
+      <div class="settings-scroll">
+
+        <!-- 화면 소스 -->
+        <details class="section" open>
+          <summary><span class="dot-ico"></span>화면 소스<span class="chev">▸</span></summary>
+          <div class="section-body">
+            <div class="pill-group" id="screenModePills">
+              <button class="pill active" data-mode="folder">폴더 미디어</button>
+              <button class="pill" data-mode="chroma">크로마키(웹캠)</button>
+            </div>
+
+            <div id="folderModeBox">
+              <div class="btn file-btn full" style="justify-content:flex-start;">
+                📁 사진·영상 폴더 선택
+                <input type="file" id="folderInput" webkitdirectory multiple>
+              </div>
+              <div class="folder-summary" id="folderSummary" style="margin-top:8px;">아직 선택된 폴더가 없어요.</div>
+              <div class="hint" style="margin-top:6px;">브라우저 보안 정책상, 페이지를 새로고침하면 폴더를 다시 선택해야 해요. (파일 자체는 저장되지 않고, 설정값만 저장됩니다)</div>
+            </div>
+
+            <div id="chromaModeBox" style="display:none;">
+              <div class="btn-row">
+                <button class="btn full" id="camStartBtn">🎥 웹캠 시작</button>
+                <button class="btn full" id="camStopBtn">■ 중지</button>
+              </div>
+              <div class="field">
+                <label>키 색상(배경색) <span class="val" id="keyColorVal">#00FF66</span></label>
+                <input type="color" id="keyColor" value="#00ff66">
+              </div>
+              <div class="field">
+                <label>유사도<span class="val" id="similarityVal">38</span></label>
+                <input type="range" id="similarity" min="0" max="100" value="38">
+              </div>
+              <div class="field">
+                <label>경계 부드러움<span class="val" id="smoothnessVal">12</span></label>
+                <input type="range" id="smoothness" min="1" max="100" value="12">
+              </div>
+              <div class="toggle-row">
+                <div><div class="lbl">폴더 미디어와 합성</div><div class="desc">웹캠(키잉된 인물)을 폴더 슬라이드쇼 위에 겹쳐 표시</div></div>
+                <input type="checkbox" id="compositeToggle">
+              </div>
+              <div class="hint">단순 색상거리 기반 크로마키예요. 조명이 고르고 배경색이 균일할수록 결과가 깔끔합니다.</div>
+            </div>
+          </div>
+        </details>
+
+        <!-- 재생 설정 -->
+        <details class="section">
+          <summary><span class="dot-ico"></span>재생 설정<span class="chev">▸</span></summary>
+          <div class="section-body">
+            <div class="field">
+              <label>사진 표시 시간 <span class="val" id="durationVal">6초</span></label>
+              <input type="range" id="durationRange" min="2" max="30" value="6">
+            </div>
+            <div class="row2">
+              <div class="field">
+                <label>영상 재생 방식</label>
+                <select id="videoModeSelect">
+                  <option value="natural">영상 길이만큼</option>
+                  <option value="fixed">사진과 동일 시간</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>재생 순서</label>
+                <select id="orderSelect">
+                  <option value="sequential">순서대로</option>
+                  <option value="shuffle">랜덤(셔플)</option>
+                </select>
+              </div>
+            </div>
+            <div class="toggle-row"><div class="lbl">전체 반복 재생</div><input type="checkbox" id="loopToggle" checked></div>
+            <div class="toggle-row"><div class="lbl">오디오 재생과 자동 연동</div><input type="checkbox" id="syncToggle" checked></div>
+            <div class="toggle-row"><div class="lbl">배경 영상 소리 재생</div><input type="checkbox" id="videoSoundToggle"></div>
+          </div>
+        </details>
+
+        <!-- 전환 효과 -->
+        <details class="section">
+          <summary><span class="dot-ico"></span>화면 전환 효과<span class="chev">▸</span></summary>
+          <div class="section-body">
+            <div class="field">
+              <label>효과 선택 방식</label>
+              <select id="transitionModeSelect">
+                <option value="random">랜덤(다양하게)</option>
+                <option value="fixed">한 가지 고정</option>
+              </select>
+            </div>
+            <div class="field" id="fixedEffectBox" style="display:none;">
+              <label>고정 효과</label>
+              <select id="fixedEffectSelect"></select>
+            </div>
+            <div class="field" id="effectPoolBox">
+              <label>랜덤 풀에 포함할 효과</label>
+              <div class="pill-group" id="effectPool"></div>
+            </div>
+            <div class="field">
+              <label>전환 속도 <span class="val" id="transDurVal">0.9초</span></label>
+              <input type="range" id="transDurRange" min="0.2" max="2.5" step="0.1" value="0.9">
+            </div>
+          </div>
+        </details>
+
+        <!-- 스펙트럼 -->
+        <details class="section">
+          <summary><span class="dot-ico"></span>오디오 스펙트럼<span class="chev">▸</span></summary>
+          <div class="section-body">
+            <div class="toggle-row"><div class="lbl">스펙트럼 표시</div><input type="checkbox" id="spectrumEnabled" checked></div>
+            <div class="row2">
+              <div class="field">
+                <label>스타일</label>
+                <select id="spectrumStyle">
+                  <option value="bars">막대(바)</option>
+                  <option value="mirrorBars">대칭 막대</option>
+                  <option value="wave">파형(웨이브)</option>
+                  <option value="circular">원형(라디얼)</option>
+                  <option value="particles">파티클</option>
+                  <option value="dots">도트 그리드</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>배치</label>
+                <select id="spectrumPosition">
+                  <option value="bottom">하단 바</option>
+                  <option value="full">전체 화면</option>
+                </select>
+              </div>
+            </div>
+            <div class="row2">
+              <div class="field"><label>색상 1</label><input type="color" id="specColor1" value="#F2B84B"></div>
+              <div class="field"><label>색상 2</label><input type="color" id="specColor2" value="#FF3E7F"></div>
+            </div>
+            <div class="field">
+              <label>민감도 <span class="val" id="sensVal">1.2</span></label>
+              <input type="range" id="sensRange" min="0.3" max="3" step="0.1" value="1.2">
+            </div>
+            <div class="field">
+              <label>불투명도 <span class="val" id="opacVal">90%</span></label>
+              <input type="range" id="opacRange" min="10" max="100" value="90">
+            </div>
+            <div class="toggle-row"><div class="lbl">좌우 대칭(미러)</div><input type="checkbox" id="mirrorToggle" checked></div>
+          </div>
+        </details>
+
+        <!-- 오디오 입력 -->
+        <details class="section">
+          <summary><span class="dot-ico"></span>신청곡 · 오디오 입력<span class="chev">▸</span></summary>
+          <div class="section-body">
+            <div class="field">
+              <label>소스</label>
+              <select id="audioSourceSelect">
+                <option value="file">신청곡 대기열 (주소 · 내 파일)</option>
+                <option value="tab">브라우저 탭/화면 오디오 캡처 (Suno 탭 등)</option>
+                <option value="mic">마이크</option>
+              </select>
+            </div>
+
+            <div id="audioFileBox">
+              <div class="field">
+                <label>신청곡 주소 <span class="val">한 줄에 하나 · 제목은 | 뒤에</span></label>
+                <textarea class="text-input" id="qUrlInput" rows="3" placeholder="suno.com/song/… | 곡 제목&#10;youtu.be/…&#10;https://…/곡.mp3"></textarea>
+              </div>
+              <div class="row2">
+                <div class="field">
+                  <label>신청자 (선택)</label>
+                  <input type="text" class="text-input" id="qRequester" placeholder="시청자 닉네임">
+                </div>
+                <div class="field">
+                  <label>제목 (선택)</label>
+                  <input type="text" class="text-input" id="qTitleInput" placeholder="한 곡일 때">
+                </div>
+              </div>
+              <div class="field">
+                <label>가사 (선택) <span class="val">주소가 한 줄일 때</span></label>
+                <textarea class="text-input" id="qLyricsInput" rows="3" placeholder="가사를 붙여넣으세요"></textarea>
+              </div>
+              <div class="btn-row">
+                <button class="btn full primary" id="qAddUrlBtn">＋ 주소 추가</button>
+                <div class="btn file-btn full">🎵 내 파일 추가<input type="file" id="qFileInput" multiple accept="audio/*"></div>
+              </div>
+              <div class="status-line" id="qAddStatus">&nbsp;</div>
+
+              <div class="q-now" id="qNow">재생 대기</div>
+              <div class="q-lyrics" id="qLyrics"></div>
+              <div class="q-seek">
+                <input type="range" id="qSeek" min="0" max="1000" value="0">
+                <span class="status-line" id="qTime">0:00 / --:--</span>
+              </div>
+              <div class="q-transport">
+                <button class="btn" id="qPrevBtn" title="이전 곡">⏮</button>
+                <button class="btn primary" id="qPlayBtn" title="재생 / 일시정지 (P)">▶</button>
+                <button class="btn" id="qStopBtn" title="정지 (S)">⏹</button>
+                <button class="btn" id="qNextBtn" title="다음 곡 (N)">⏭</button>
+                <button class="btn" id="qDuckBtn" title="대화 모드: 볼륨 낮추기 (D)">🎙</button>
+              </div>
+
+              <div class="row2">
+                <div class="field">
+                  <label>재생 순서</label>
+                  <select id="qMode">
+                    <option value="sequential">들어온 순서대로</option>
+                    <option value="random">랜덤</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>&nbsp;</label>
+                  <button class="btn full" id="qShuffleBtn">🔀 대기곡 섞기</button>
+                </div>
+              </div>
+              <div class="toggle-row"><div class="lbl">대기열 반복</div><input type="checkbox" id="qLoop" checked></div>
+
+              <div class="status-line" id="qCount">대기열 비어있음</div>
+              <div class="q-list" id="qList"></div>
+              <div class="q-edit" id="qEditBox">
+                <label class="q-edit-head" id="qEditHead">곡 정보 수정</label>
+                <input type="text" class="text-input" id="qEditTitle" placeholder="제목">
+                <textarea class="text-input" id="qEditLyrics" rows="6" placeholder="가사"></textarea>
+                <div class="btn-row">
+                  <button class="btn full primary" id="qEditSave">저장</button>
+                  <button class="btn full" id="qEditCancel">취소</button>
+                </div>
+              </div>
+              <button class="btn full danger ghost" id="qClearBtn">대기열 비우기</button>
+
+              <div class="hint">
+                지원 주소: Suno 곡 링크(suno.com/song/…), 유튜브 링크, 직접 재생되는 오디오 주소(.mp3 등). 단축키 P 재생/일시정지 · S 정지 · N 다음 · D 대화 모드.<br>
+                내 파일과 허용되는 mp3 주소는 실제 소리를 분석해 스펙트럼이 반응하고, 유튜브와 분석이 막힌 주소는 소리를 분석할 수 없어 <b>시뮬레이션 스펙트럼</b>으로 표시돼요. 유튜브는 재생 중에 화면 오른쪽 아래에 작은 플레이어가 떠요(접기 가능). 소리가 안 나면 그 플레이어의 ▶를 눌러주세요.
+              </div>
+            </div>
+
+            <div id="audioTabBox" style="display:none;">
+              <button class="btn full" id="tabCaptureBtn">🖥 탭/화면 오디오 캡처 시작</button>
+              <div class="hint" style="margin-top:6px;">Suno 등 음악이 재생 중인 브라우저 탭을 선택하면, 그 탭의 소리를 분석해 스펙트럼을 그려요. 소리는 그대로 그 탭에서 재생되므로 이중 재생되지 않습니다. (Chrome 계열 권장)</div>
+              <button class="btn full" id="tabStopBtn" style="margin-top:8px;">■ 캡처 중지</button>
+            </div>
+
+            <div id="audioMicBox" style="display:none;">
+              <button class="btn full" id="micStartBtn">🎤 마이크 시작</button>
+              <button class="btn full" id="micStopBtn" style="margin-top:8px;">■ 중지</button>
+            </div>
+
+            <div class="field">
+              <label>재생 음량 <span class="val" id="volVal">90%</span></label>
+              <input type="range" id="volRange" min="0" max="100" value="90">
+            </div>
+            <div class="status-line" id="audioStatus">오디오: 대기중</div>
+          </div>
+        </details>
+
+        <!-- 방송준비중 -->
+        <details class="section">
+          <summary><span class="dot-ico"></span>방송준비중 화면<span class="chev">▸</span></summary>
+          <div class="section-body">
+            <div class="btn file-btn full" style="justify-content:flex-start;">🖼 대기 이미지 업로드<input type="file" id="standbyImageInput" accept="image/*"></div>
+            <div class="toggle-row">
+              <div><div class="lbl">방송준비중 화면 표시</div><div class="desc">켜면 무대 위에 대기 이미지가 덮어씌워집니다</div></div>
+              <button class="switch-btn" id="standbySwitchBtn"><span class="switch" id="standbySwitch2"></span></button>
+            </div>
+            <div class="hint">단축키: Space 로 언제든 켜고 끌 수 있어요.</div>
+          </div>
+        </details>
+
+        <!-- 채팅 연결 -->
+        <details class="section">
+          <summary><span class="dot-ico"></span>채팅 연결<span class="chev">▸</span></summary>
+          <div class="section-body">
+            <div class="field">
+              <label>채팅 embed 주소</label>
+              <input type="text" class="text-input" id="chatEmbedInput" placeholder="https://... (유튜브/치지직/트위치 채팅 embed URL)">
+            </div>
+            <div class="btn-row">
+              <button class="btn full" id="chatEmbedApplyBtn">적용</button>
+              <button class="btn full ghost" id="chatEmbedClearBtn">해제(데모 채팅)</button>
+            </div>
+            <div class="hint">트위치는 주소 끝에 <code>?parent=내도메인</code> 파라미터가 필요할 수 있어요.</div>
+          </div>
+        </details>
+
+        <!-- 저장/불러오기 -->
+        <details class="section">
+          <summary><span class="dot-ico"></span>설정 저장 · 불러오기<span class="chev">▸</span></summary>
+          <div class="section-body">
+            <div class="btn-row">
+              <button class="btn full primary" id="saveLocalBtn">💾 저장</button>
+              <button class="btn full" id="loadLocalBtn">불러오기</button>
+            </div>
+            <div class="btn-row">
+              <button class="btn full" id="exportJsonBtn">⬇ JSON 내보내기</button>
+              <div class="btn file-btn full">⬆ JSON 불러오기<input type="file" id="importJsonInput" accept="application/json"></div>
+            </div>
+            <button class="btn full danger ghost" id="resetBtn">전체 설정 초기화</button>
+            <div class="status-line" id="settingsStatus">&nbsp;</div>
+            <div class="hint">저장에는 모든 슬라이더·색상·효과·대기 이미지 값이 포함돼요. 단, 폴더 속 사진/영상 파일 자체는 브라우저 보안 정책상 저장할 수 없어 새로고침 후 폴더는 다시 선택해야 합니다.</div>
+          </div>
+        </details>
+
+      </div>
+    </aside>
+
+  </div>
+</div>
+
+<div class="yt-dock" id="ytDock">
+  <div class="yt-dock-head" title="끌어서 옮기기"><b>▶ YouTube</b><span class="hd-hint">⠿ 끌어서 이동</span><span class="hd-sp"></span><button id="ytToggleBtn" type="button">접기</button></div>
+  <div class="yt-wrap" id="ytWrap"><div id="ytPlayer"></div></div>
+  <div class="yt-note" id="ytNote"></div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(function(){
+  'use strict';
+  const $ = (sel,el=document)=>el.querySelector(sel);
+  const $$ = (sel,el=document)=>[...el.querySelectorAll(sel)];
+
+  /* ============================================================
+     상태
+  ============================================================ */
+  const EFFECTS = ['fade','slideLeft','slideRight','slideUp','slideDown','zoomIn','zoomOut','blur','wipe','flip','diagonal'];
+  const EFFECT_LABEL = {
+    fade:'페이드', slideLeft:'슬라이드←', slideRight:'슬라이드→', slideUp:'슬라이드↑', slideDown:'슬라이드↓',
+    zoomIn:'줌인', zoomOut:'줌아웃', blur:'블러', wipe:'와이프', flip:'플립', diagonal:'대각선'
+  };
+
+  function defaultSettings(){
+    return {
+      version:1,
+      playback:{ duration:6, order:'sequential', loop:true, videoMode:'natural', sync:true, videoSound:false },
+      transitions:{ mode:'random', fixed:'fade', pool:[...EFFECTS], duration:0.9 },
+      spectrum:{ enabled:true, style:'bars', position:'bottom', color1:'#F2B84B', color2:'#FF3E7F', sensitivity:1.2, opacity:0.9, mirror:true },
+      audio:{ source:'file', volume:0.9 },
+      screen:{ mode:'folder', keyColor:'#00ff66', similarity:38, smoothness:12, composite:false },
+      standby:{ enabled:false, image:null },
+      chat:{ embedUrl:'' },
+      queue:{ mode:'sequential', loop:true, urls:[] }
+    };
+  }
+
+  let settings = defaultSettings();
+
+  const media = { items:[], playOrder:[], pos:-1, playing:false, timer:null, effectA:true };
+  const audioState = { ctx:null, analyser:null, source:null, gain:null, files:[], idx:-1, el:null, stream:null, mode:null };
+  const camState = { stream:null, video:null, raf:null, offCanvas:null, offCtx:null };
+
+  /* ============================================================
+     시계
+  ============================================================ */
+  function tickClock(){
+    const d = new Date();
+    $('#clock').textContent = d.toLocaleTimeString('ko-KR',{hour12:false});
+  }
+  setInterval(tickClock,1000); tickClock();
+
+  /* ============================================================
+     ON AIR 배지
+  ============================================================ */
+  function refreshOnair(){
+    const badge = $('#onairBadge'), text = $('#onairText');
+    if(settings.standby.enabled){
+      badge.classList.remove('live'); text.textContent = '준비중';
+    } else if(media.playing){
+      badge.classList.add('live'); text.textContent = 'ON AIR';
+    } else {
+      badge.classList.remove('live'); text.textContent = 'STANDBY';
+    }
+  }
+
+  /* ============================================================
+     화면 소스: 폴더 / 크로마키
+  ============================================================ */
+  $$('#screenModePills .pill').forEach(p=>{
+    p.addEventListener('click', ()=>{
+      settings.screen.mode = p.dataset.mode;
+      $$('#screenModePills .pill').forEach(x=>x.classList.toggle('active', x===p));
+      $('#folderModeBox').style.display = settings.screen.mode==='folder' ? '' : 'none';
+      $('#chromaModeBox').style.display = settings.screen.mode==='chroma' ? '' : 'none';
+      applyScreenMode();
+    });
+  });
+
+  function applyScreenMode(){
+    const chromaOn = settings.screen.mode==='chroma' && camState.stream;
+    $('#chromaCanvas').style.display = chromaOn ? 'block' : 'none';
+    $('#layerA').style.display = (settings.screen.mode==='folder' || settings.screen.composite) ? 'block' : (settings.screen.mode==='chroma' ? 'none':'block');
+    $('#layerB').style.display = $('#layerA').style.display;
+  }
+
+  /* ---- 폴더 미디어 로드 ---- */
+  $('#folderInput').addEventListener('change', (e)=>{
+    const files = [...e.target.files].filter(f=>/^image\//.test(f.type) || /^video\//.test(f.type));
+    media.items.forEach(it=>{ if(it.url) URL.revokeObjectURL(it.url); });
+    media.items = files.map(f=>({
+      name:f.name,
+      type:/^video\//.test(f.type)?'video':'image',
+      url:URL.createObjectURL(f)
+    }));
+    const imgN = media.items.filter(i=>i.type==='image').length;
+    const vidN = media.items.filter(i=>i.type==='video').length;
+    $('#folderSummary').innerHTML = media.items.length
+      ? `<b>${media.items.length}개</b> 파일 로드됨 · 사진 ${imgN} · 영상 ${vidN}`
+      : '이미지·영상 파일을 찾지 못했어요.';
+    buildPlayOrder();
+    if(media.items.length){
+      $('#stageEmpty').style.display='none';
+      if(!settings.playback.sync || audioState.mode) startSlideshow();
+    }
+  });
+
+  function buildPlayOrder(){
+    media.playOrder = media.items.map((_,i)=>i);
+    if(settings.playback.order==='shuffle') shuffleArray(media.playOrder);
+  }
+  function shuffleArray(arr){
+    for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; }
+  }
+
+  /* ============================================================
+     슬라이드쇼 엔진
+  ============================================================ */
+  function pickEffect(){
+    if(settings.transitions.mode==='fixed') return settings.transitions.fixed;
+    const pool = settings.transitions.pool.length ? settings.transitions.pool : EFFECTS;
+    return pool[Math.floor(Math.random()*pool.length)];
+  }
+
+  const EFFECT_FROM = {
+    fade:      {opacity:0},
+    slideLeft: {opacity:0, transform:'translateX(6%)'},
+    slideRight:{opacity:0, transform:'translateX(-6%)'},
+    slideUp:   {opacity:0, transform:'translateY(6%)'},
+    slideDown: {opacity:0, transform:'translateY(-6%)'},
+    zoomIn:    {opacity:0, transform:'scale(1.16)'},
+    zoomOut:   {opacity:0, transform:'scale(0.84)'},
+    blur:      {opacity:0, filter:'blur(22px)'},
+    wipe:      {opacity:1, clipPath:'inset(0 100% 0 0)'},
+    flip:      {opacity:0, transform:'perspective(900px) rotateY(75deg) scale(.92)'},
+    diagonal:  {opacity:0, transform:'translate(5%,5%) scale(1.06)'}
+  };
+  const EFFECT_TO = {
+    fade:{opacity:1}, slideLeft:{opacity:1,transform:'translateX(0)'}, slideRight:{opacity:1,transform:'translateX(0)'},
+    slideUp:{opacity:1,transform:'translateY(0)'}, slideDown:{opacity:1,transform:'translateY(0)'},
+    zoomIn:{opacity:1,transform:'scale(1)'}, zoomOut:{opacity:1,transform:'scale(1)'},
+    blur:{opacity:1,filter:'blur(0)'}, wipe:{opacity:1,clipPath:'inset(0 0 0 0)'},
+    flip:{opacity:1,transform:'perspective(900px) rotateY(0) scale(1)'},
+    diagonal:{opacity:1,transform:'translate(0,0) scale(1)'}
+  };
+
+  function styleSet(el, obj){
+    el.style.opacity = obj.opacity ?? '';
+    el.style.transform = obj.transform ?? '';
+    el.style.filter = obj.filter ?? '';
+    el.style.clipPath = obj.clipPath ?? '';
+  }
+
+  function showAt(orderIdx){
+    if(!media.items.length) return;
+    orderIdx = ((orderIdx % media.playOrder.length) + media.playOrder.length) % media.playOrder.length;
+    media.pos = orderIdx;
+    const item = media.items[media.playOrder[orderIdx]];
+    const incoming = media.effectA ? $('#layerB') : $('#layerA');
+    const outgoing = media.effectA ? $('#layerA') : $('#layerB');
+    media.effectA = !media.effectA;
+
+    incoming.innerHTML = '';
+    let el;
+    if(item.type==='image'){
+      el = document.createElement('img');
+      el.src = item.url;
+    } else {
+      el = document.createElement('video');
+      el.src = item.url;
+      el.autoplay = true; el.muted = !settings.playback.videoSound; el.playsInline = true; el.loop=false;
+      el.onended = ()=>{ if(settings.playback.videoMode==='natural') advance(1); };
+    }
+    incoming.appendChild(el);
+
+    const effect = pickEffect();
+    const dur = settings.transitions.duration;
+    incoming.style.transitionDuration = dur+'s';
+    outgoing.style.transitionDuration = dur+'s';
+    incoming.style.transitionProperty = 'opacity, transform, filter, clip-path';
+    styleSet(incoming, EFFECT_FROM[effect]);
+    incoming.classList.add('active');
+    // 모바일 브라우저에서 reflow 트릭만으로는 전환 시작 상태가 씹히는 경우가 있어
+    // 두 번의 requestAnimationFrame으로 "시작 상태 페인트 완료"를 확실히 기다린 뒤 목표 상태로 전환합니다.
+    requestAnimationFrame(()=>{
+      requestAnimationFrame(()=>{
+        styleSet(incoming, EFFECT_TO[effect]);
+      });
+    });
+
+    setTimeout(()=>{ outgoing.classList.remove('active'); outgoing.innerHTML=''; }, dur*1000+60);
+
+    $('#hudInfo').textContent = `${orderIdx+1}/${media.playOrder.length} · ${item.name} · ${EFFECT_LABEL[effect]}`;
+
+    clearTimeout(media.timer);
+    if(item.type==='image' || settings.playback.videoMode==='fixed'){
+      media.timer = setTimeout(()=>advance(1), settings.playback.duration*1000);
+    }
+  }
+
+  function advance(dir){
+    if(!media.items.length) return;
+    let next = media.pos + dir;
+    if(next >= media.playOrder.length){
+      if(!settings.playback.loop){ pauseSlideshow(); return; }
+      if(settings.playback.order==='shuffle') buildPlayOrder();
+      next = 0;
+    } else if(next < 0){
+      next = media.playOrder.length-1;
+    }
+    showAt(next);
+  }
+
+  function startSlideshow(){
+    if(!media.items.length) return;
+    media.playing = true;
+    $('#playPauseBtn').textContent='⏸';
+    if(media.pos<0) showAt(0); else clearTimeout(media.timer), showAt(media.pos);
+    refreshOnair();
+  }
+  function pauseSlideshow(){
+    media.playing = false;
+    $('#playPauseBtn').textContent='▶';
+    clearTimeout(media.timer);
+    refreshOnair();
+  }
+  function toggleSlideshow(){ media.playing ? pauseSlideshow() : startSlideshow(); }
+
+  $('#playPauseBtn').addEventListener('click', toggleSlideshow);
+  $('#prevBtn').addEventListener('click', ()=>advance(-1));
+  $('#nextBtn').addEventListener('click', ()=>advance(1));
+  $('#hudFullscreenBtn').addEventListener('click', ()=>{
+    const el = $('#stageFrame');
+    if(!document.fullscreenElement) el.requestFullscreen?.(); else document.exitFullscreen?.();
+  });
+
+  /* ============================================================
+     스펙트럼 (Web Audio + Canvas)
+  ============================================================ */
+  const specCanvas = $('#spectrumCanvas');
+  const specCtx = specCanvas.getContext('2d');
+  function resizeCanvases(){
+    const r = $('#stageFrame').getBoundingClientRect();
+    [specCanvas, $('#chromaCanvas')].forEach(c=>{
+      c.width = Math.max(1, Math.round(r.width));
+      c.height = Math.max(1, Math.round(r.height));
+    });
+  }
+  new ResizeObserver(resizeCanvases).observe($('#stageFrame'));
+  resizeCanvases();
+
+  function ensureAudioCtx(){
+    if(!audioState.ctx){
+      audioState.ctx = new (window.AudioContext||window.webkitAudioContext)();
+      audioState.analyser = audioState.ctx.createAnalyser();
+      audioState.analyser.fftSize = 1024;
+      audioState.analyser.smoothingTimeConstant = 0.75;
+      audioState.gain = audioState.ctx.createGain();
+      audioState.gain.gain.value = settings.audio.volume;
+      audioState.gain.connect(audioState.ctx.destination);
+    }
+    return audioState.ctx;
+  }
+
+  function connectSourceNode(node, toSpeakers){
+    if(audioState.source){ try{audioState.source.disconnect();}catch(e){} }
+    audioState.source = node;
+    node.connect(audioState.analyser);
+    if(toSpeakers) node.connect(audioState.gain);
+  }
+
+  let freqData=null, timeData=null;
+  function drawSpectrum(){
+    requestAnimationFrame(drawSpectrum);
+    const w = specCanvas.width, h = specCanvas.height;
+    specCtx.clearRect(0,0,w,h);
+    const useSim = Q.simulated;
+    if(!settings.spectrum.enabled || (!audioState.analyser && !useSim)) return;
+
+    const bins = useSim ? 512 : audioState.analyser.frequencyBinCount;
+    if(!freqData || freqData.length!==bins){ freqData=new Uint8Array(bins); timeData=new Uint8Array(bins); }
+    if(useSim){ fillSimulated(freqData, timeData); }
+    else {
+      audioState.analyser.getByteFrequencyData(freqData);
+      audioState.analyser.getByteTimeDomainData(timeData);
+    }
+
+    specCtx.save();
+    specCtx.globalAlpha = settings.spectrum.opacity;
+    const grad = specCtx.createLinearGradient(0,0,w,0);
+    grad.addColorStop(0, settings.spectrum.color1);
+    grad.addColorStop(1, settings.spectrum.color2);
+    specCtx.fillStyle = grad; specCtx.strokeStyle = grad;
+
+    const full = settings.spectrum.position==='full';
+    const bandH = full ? h : Math.round(h*0.30);
+    const bandY = h - bandH;
+    const sens = settings.spectrum.sensitivity;
+
+    switch(settings.spectrum.style){
+      case 'bars': drawBars(freqData, bandY, bandH, w, sens, settings.spectrum.mirror); break;
+      case 'mirrorBars': drawBars(freqData, bandY, bandH, w, sens, true); break;
+      case 'wave': drawWave(timeData, full?0:bandY, full?h:bandH, w); break;
+      case 'circular': drawCircular(freqData, w, h, sens); break;
+      case 'particles': drawParticles(freqData, w, h, sens); break;
+      case 'dots': drawDots(freqData, w, h, sens); break;
+    }
+    specCtx.restore();
+  }
+
+  function drawBars(data, bandY, bandH, w, sens, mirror){
+    const n = 64;
+    const step = Math.floor(data.length/n);
+    const bw = w/n;
+    for(let i=0;i<n;i++){
+      const v = data[i*step]/255*sens;
+      const bh = Math.min(bandH, bandH*v);
+      const x = i*bw;
+      specCtx.fillRect(x+1, bandY+bandH-bh, bw-2, bh);
+      if(mirror) specCtx.fillRect(x+1, bandY+bandH, bw-2, bh*0.5);
+    }
+  }
+  function drawWave(data, y0, h0, w){
+    specCtx.lineWidth = 2;
+    specCtx.beginPath();
+    const n = data.length, step = w/n;
+    for(let i=0;i<n;i++){
+      const v = (data[i]-128)/128;
+      const x = i*step, y = y0 + h0/2 + v*h0/2;
+      i===0 ? specCtx.moveTo(x,y) : specCtx.lineTo(x,y);
+    }
+    specCtx.stroke();
+  }
+  function drawCircular(data, w, h, sens){
+    const cx=w/2, cy=h/2, r0=Math.min(w,h)*0.14, n=90;
+    const step=Math.floor(data.length/n);
+    specCtx.lineWidth=3;
+    for(let i=0;i<n;i++){
+      const v=data[i*step]/255*sens;
+      const ang=(i/n)*Math.PI*2;
+      const r1=r0+ v*Math.min(w,h)*0.18;
+      specCtx.beginPath();
+      specCtx.moveTo(cx+Math.cos(ang)*r0, cy+Math.sin(ang)*r0);
+      specCtx.lineTo(cx+Math.cos(ang)*r1, cy+Math.sin(ang)*r1);
+      specCtx.stroke();
+    }
+  }
+  function drawParticles(data, w, h, sens){
+    specCtx.fillStyle = specCtx.fillStyle;
+    const n=48, step=Math.floor(data.length/n);
+    for(let i=0;i<n;i++){
+      const v=data[i*step]/255*sens;
+      const x=(i/n)*w + (w/n)/2;
+      const y=h - v*h*0.85 - 6;
+      const r=2+v*7;
+      specCtx.globalAlpha = settings.spectrum.opacity*(0.4+v*0.6);
+      specCtx.beginPath(); specCtx.arc(x,y,r,0,Math.PI*2); specCtx.fill();
+    }
+  }
+  function drawDots(data, w, h, sens){
+    const cols=28, rows=10, step=Math.floor(data.length/cols);
+    for(let c=0;c<cols;c++){
+      const v=data[c*step]/255*sens;
+      const activeRows = Math.round(v*rows);
+      for(let r=0;r<activeRows;r++){
+        const x=(c+0.5)*(w/cols);
+        const y=h-(r+0.5)*(h/rows/1.6)-4;
+        specCtx.globalAlpha = settings.spectrum.opacity*(0.35+ (r/rows)*0.65);
+        specCtx.beginPath(); specCtx.arc(x,y,3.5,0,Math.PI*2); specCtx.fill();
+      }
+    }
+  }
+  requestAnimationFrame(drawSpectrum);
+
+  /* ============================================================
+     오디오 입력: 파일 / 탭캡처 / 마이크
+  ============================================================ */
+  $('#audioSourceSelect').addEventListener('change', e=>{
+    settings.audio.source = e.target.value;
+    $('#audioFileBox').style.display = settings.audio.source==='file'?'':'none';
+    $('#audioTabBox').style.display = settings.audio.source==='tab'?'':'none';
+    $('#audioMicBox').style.display = settings.audio.source==='mic'?'':'none';
+  });
+
+  // --- 신청곡 대기열: 내 파일 · 직접 mp3 주소 · Suno 링크 · 유튜브 ---
+  if(!audioState.el){ audioState.el = new Audio(); audioState.el.crossOrigin='anonymous'; }
+
+  const Q = {
+    items:[], curId:null, nextId:null, history:[], uid:0,
+    state:'stopped',        // playing | paused | stopped
+    backend:null,           // cors(실제 분석) | plain(분석 불가) | yt(유튜브)
+    simulated:false,        // true면 실제 소리 대신 시뮬레이션 스펙트럼
+    mode:'sequential', loop:true, duck:false,
+    token:0, seeking:false, syncGuard:0, editId:null, lyricsKey:'',
+    plain:new Audio(), yt:null, ytReady:false, ytPending:null
+  };
+  const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+
+  function setAudioStatus(msg){ $('#audioStatus').textContent = '오디오: '+msg; }
+  function itemById(id){ return Q.items.find(i=>i.id===id) || null; }
+  function fmtTime(s){ if(!isFinite(s) || s<0) s=0; s=Math.floor(s); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
+  function safeDecode(s){ try{ return decodeURIComponent(s); }catch(e){ return s; } }
+
+  /* ---------- 주소 판별 ---------- */
+  function parseSongUrl(raw){
+    let s = raw.trim();
+    if(!s) return null;
+    if(!/^https?:\/\//i.test(s)) s = 'https://'+s;
+    let u;
+    try{ u = new URL(s); }catch(e){ return {error:'주소 형식이 올바르지 않아요'}; }
+    if(location.protocol==='https:' && u.protocol==='http:') u.protocol = 'https:';
+    const host = u.hostname.replace(/^www\./,'').toLowerCase();
+
+    // 유튜브
+    let yid = null;
+    if(host==='youtu.be') yid = u.pathname.slice(1).split('/')[0];
+    else if(host==='youtube.com' || host.endsWith('.youtube.com')){
+      if(u.pathname==='/watch') yid = u.searchParams.get('v');
+      else { const m = u.pathname.match(/^\/(?:shorts|embed|live)\/([\w-]{6,})/); if(m) yid = m[1]; }
+    }
+    if(yid && /^[\w-]{6,}$/.test(yid)) return {kind:'youtube', ytId:yid, src:u.href, title:'YouTube '+yid};
+    if(host==='youtu.be' || host==='youtube.com' || host.endsWith('.youtube.com')) return {error:'유튜브는 영상 주소(watch?v=…)만 지원해요 (재생목록·채널 주소 불가)'};
+
+    // Suno 곡 페이지 → 직접 mp3 주소로 변환
+    if(/(^|\.)suno\.(com|ai)$/.test(host) && !/^cdn\d*\./.test(host)){
+      const m = u.href.match(UUID_RE);
+      if(m) return {kind:'url', src:'https://cdn1.suno.ai/'+m[0].toLowerCase()+'.mp3', title:'Suno '+m[0].slice(0,8)};
+      return {error:'Suno 짧은 링크는 변환할 수 없어요. suno.com/song/… 주소를 넣어주세요'};
+    }
+
+    // 그 외는 직접 재생 가능한 오디오 주소로 간주
+    const last = safeDecode(u.pathname.split('/').filter(Boolean).pop() || u.hostname);
+    return {kind:'url', src:u.href, title:last};
+  }
+
+  /* ---------- 대기열 조작 ---------- */
+  function qAddItem(it){
+    it.id = ++Q.uid; it.played = false; it.failed = false;
+    it.requester = it.requester || '';
+    it.lyrics = it.lyrics || ''; it.titleEdited = !!it.titleEdited;
+    Q.items.push(it);
+    renderQueue();
+    return it;
+  }
+
+  let qAddTimer = null;
+  function qAddMsg(msg, ok){
+    const el = $('#qAddStatus');
+    el.textContent = msg; el.classList.toggle('ok', ok!==false);
+    clearTimeout(qAddTimer);
+    qAddTimer = setTimeout(()=>{ el.textContent = ' '; }, 5000);
+  }
+
+  function fetchYtTitle(it){
+    fetch('https://www.youtube.com/oembed?format=json&url='+encodeURIComponent('https://www.youtube.com/watch?v='+it.ytId))
+      .then(r=>r.ok ? r.json() : null)
+      .then(j=>{ if(j && j.title && !it.titleEdited){ it.title = j.title; renderQueue(); } })
+      .catch(()=>{});
+  }
+
+  $('#qAddUrlBtn').addEventListener('click', ()=>{
+    const requester = $('#qRequester').value.trim();
+    const lines = $('#qUrlInput').value.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+    if(!lines.length){ qAddMsg('주소를 입력해주세요', false); return; }
+    // 한 줄 형식: 주소 | 제목
+    const parsed = lines.map(line=>{
+      const bar = line.indexOf('|');
+      return { r:parseSongUrl(bar>=0 ? line.slice(0,bar) : line), label:bar>=0 ? line.slice(bar+1).trim() : '' };
+    }).filter(x=>x.r);
+    const valid = parsed.filter(x=>!x.r.error);
+    const errs = parsed.filter(x=>x.r.error).map(x=>x.r.error);
+    const single = valid.length===1;                       // 제목·가사 칸은 한 곡일 때만 적용
+    const formTitle = $('#qTitleInput').value.trim(), formLyrics = $('#qLyricsInput').value.trim();
+    valid.forEach(x=>{
+      const title = x.label || (single ? formTitle : '');
+      const it = qAddItem({kind:x.r.kind, src:x.r.src, ytId:x.r.ytId, title:title || x.r.title, requester,
+                           lyrics:single ? formLyrics : '', titleEdited:!!title});
+      if(x.r.kind==='youtube' && !title) fetchYtTitle(it);
+    });
+    const ok = valid.length;
+    if(ok){
+      $('#qUrlInput').value = '';
+      if(single){ $('#qTitleInput').value = ''; $('#qLyricsInput').value = ''; }
+    }
+    const skipped = (ok>1 && (formTitle || formLyrics)) ? ' · 제목/가사 칸은 한 곡일 때만 적용돼요(곡 옆 ✎로 수정)' : '';
+    qAddMsg((ok ? `${ok}곡 추가됨` : '추가된 곡이 없어요')
+      + (errs.length ? ' · '+errs[0]+(errs.length>1 ? ` 외 ${errs.length-1}건` : '') : '')
+      + skipped, ok>0 && !errs.length);
+  });
+
+  $('#qFileInput').addEventListener('change', e=>{
+    const requester = $('#qRequester').value.trim();
+    const files = [...e.target.files].filter(f=>/^audio\//.test(f.type) || /\.(mp3|m4a|wav|ogg|aac|flac|opus)$/i.test(f.name));
+    files.forEach(f=>qAddItem({kind:'file', src:URL.createObjectURL(f), title:f.name.replace(/\.[^.]+$/,''), requester}));
+    e.target.value = '';
+    qAddMsg(files.length ? `내 파일 ${files.length}곡 추가됨` : '음악 파일을 찾지 못했어요', files.length>0);
+  });
+
+  function renderQueue(){
+    const list = $('#qList');
+    list.innerHTML = '';
+    if(!Q.items.length){
+      const d = document.createElement('div'); d.className = 'hint';
+      d.textContent = '대기열이 비어있어요. 주소나 파일을 추가해주세요.';
+      list.appendChild(d);
+    }
+    Q.items.forEach((it,idx)=>{
+      const isCur = it.id===Q.curId;
+      const row = document.createElement('div');
+      row.className = 'q-item'+(isCur?' cur':'')+(it.played && !isCur?' done':'')+(it.failed?' fail':'');
+
+      const badge = document.createElement('span');
+      badge.className = 'q-kind';
+      badge.textContent = it.kind==='youtube' ? 'YT' : (it.kind==='file' ? '파일' : 'URL');
+
+      const mid = document.createElement('div'); mid.className = 'q-mid';
+      const t = document.createElement('div'); t.className = 'q-title'; t.textContent = (idx+1)+'. '+it.title;
+      mid.appendChild(t);
+      const bits = [];
+      if(isCur) bits.push(Q.state==='playing' ? '▶ 재생 중' : (Q.state==='paused' ? '⏸ 일시정지' : '⏹ 정지'));
+      if(Q.nextId===it.id) bits.push('다음 곡 예약');
+      if(it.failed) bits.push('⚠ '+(it.failMsg || '재생 실패'));
+      if(it.requester) bits.push('신청: '+it.requester);
+      if(bits.length){
+        const meta = document.createElement('div'); meta.className = 'q-meta'; meta.textContent = bits.join(' · ');
+        mid.appendChild(meta);
+      }
+      if(it.lyrics){
+        const lyr = document.createElement('div');
+        lyr.className = 'q-lyr'+(it.open ? ' open' : '');
+        lyr.textContent = it.lyrics;
+        lyr.title = it.open ? '클릭하면 접기' : '클릭하면 가사 전체 보기';
+        lyr.addEventListener('click', ()=>{ it.open = !it.open; renderQueue(); });
+        mid.appendChild(lyr);
+      }
+
+      const acts = document.createElement('div'); acts.className = 'q-acts';
+      const mk = (txt,title,fn)=>{
+        const b = document.createElement('button');
+        b.className = 'q-ibtn'; b.textContent = txt; b.title = title;
+        b.addEventListener('click', fn); acts.appendChild(b);
+      };
+      mk('▶','지금 재생',()=>qPlayNow(it.id));
+      mk('⤒','다음 곡으로 예약',()=>{ Q.nextId = it.id; renderQueue(); });
+      mk('✎','제목·가사 수정',()=>qOpenEdit(it.id));
+      mk('✕','삭제',()=>qRemove(it.id));
+
+      row.appendChild(badge); row.appendChild(mid); row.appendChild(acts);
+      list.appendChild(row);
+    });
+    const waiting = Q.items.filter(i=>!i.played && !i.failed && i.id!==Q.curId).length;
+    $('#qCount').textContent = Q.items.length ? `전체 ${Q.items.length}곡 · 대기 ${waiting}곡` : '대기열 비어있음';
+    updateNowPlaying();
+  }
+
+  function updateNowPlaying(){
+    const it = itemById(Q.curId);
+    const icon = Q.state==='playing' ? '▶' : (Q.state==='paused' ? '⏸' : '⏹');
+    const txt = it ? `${icon} ${it.title}${it.requester ? ' · 신청 '+it.requester : ''}` : '재생 대기';
+    $('#qNow').textContent = txt;
+    $('#mtTitle').textContent = txt;
+    const playing = Q.state==='playing';
+    $('#mtPlay').textContent = playing ? '⏸' : '▶';
+    $('#qPlayBtn').textContent = playing ? '⏸' : '▶';
+    $('#mtDuck').classList.toggle('on', Q.duck);
+    $('#qDuckBtn').classList.toggle('primary', Q.duck);
+    const key = it ? it.id+'|'+(it.lyrics || '') : '';
+    if(key!==Q.lyricsKey){
+      Q.lyricsKey = key;
+      const ly = $('#qLyrics');
+      ly.textContent = it && it.lyrics ? it.lyrics : '';
+      ly.classList.toggle('show', !!(it && it.lyrics));
+      ly.scrollTop = 0;
+    }
+  }
+
+  /* ---------- 곡 정보(제목·가사) 수정 ---------- */
+  function qOpenEdit(id){
+    const it = itemById(id); if(!it) return;
+    Q.editId = id;
+    $('#qEditHead').textContent = '곡 정보 수정 · '+it.title;
+    $('#qEditTitle').value = it.title;
+    $('#qEditLyrics').value = it.lyrics || '';
+    $('#qEditBox').classList.add('show');
+    $('#qEditBox').scrollIntoView({block:'nearest', behavior:'smooth'});
+    $('#qEditTitle').focus();
+  }
+  function qCloseEdit(){ Q.editId = null; $('#qEditBox').classList.remove('show'); }
+  $('#qEditSave').addEventListener('click', ()=>{
+    const it = itemById(Q.editId);
+    if(it){
+      const t = $('#qEditTitle').value.trim();
+      if(t){ it.title = t; it.titleEdited = true; }
+      it.lyrics = $('#qEditLyrics').value.trim();
+    }
+    qCloseEdit(); renderQueue();
+  });
+  $('#qEditCancel').addEventListener('click', qCloseEdit);
+
+  function qPlayNow(id){
+    const it = itemById(id); if(!it) return;
+    if(Q.curId!=null && Q.curId!==id) Q.history.push(Q.curId);
+    qPlayItem(it);
+  }
+
+  function qRemove(id){
+    const it = itemById(id); if(!it) return;
+    const wasCur = id===Q.curId, wasPlaying = Q.state==='playing';
+    if(Q.editId===id) qCloseEdit();
+    if(Q.nextId===id) Q.nextId = null;
+    Q.history = Q.history.filter(h=>h!==id);
+    Q.items = Q.items.filter(i=>i.id!==id);
+    if(it.kind==='file') URL.revokeObjectURL(it.src);
+    if(wasCur){
+      Q.curId = null;
+      if(wasPlaying) qNext(); else qStop();
+    }
+    renderQueue();
+  }
+
+  $('#qClearBtn').addEventListener('click', ()=>{
+    if(!Q.items.length) return;
+    if(!confirm('대기열을 모두 비울까요?')) return;
+    qStop(); qCloseEdit();
+    Q.items.forEach(i=>{ if(i.kind==='file') URL.revokeObjectURL(i.src); });
+    Q.items = []; Q.curId = null; Q.nextId = null; Q.history = [];
+    renderQueue();
+  });
+
+  function qShuffleWaiting(){
+    const slots = [];
+    Q.items.forEach((it,i)=>{ if(!it.played && !it.failed && it.id!==Q.curId) slots.push(i); });
+    const vals = slots.map(i=>Q.items[i]);
+    shuffleArray(vals);
+    slots.forEach((i,k)=>{ Q.items[i] = vals[k]; });
+    renderQueue();
+    return slots.length;
+  }
+  $('#qShuffleBtn').addEventListener('click', ()=>{
+    const n = qShuffleWaiting();
+    qAddMsg(n ? `대기곡 ${n}개를 섞었어요` : '섞을 대기곡이 없어요', n>0);
+  });
+  $('#qMode').addEventListener('change', e=>{ Q.mode = e.target.value; settings.queue.mode = Q.mode; });
+  $('#qLoop').addEventListener('change', e=>{ Q.loop = e.target.checked; settings.queue.loop = Q.loop; });
+
+  /* ---------- 다음 곡 고르기 ---------- */
+  function qPickNext(){
+    if(Q.nextId!=null){
+      const f = itemById(Q.nextId); Q.nextId = null;
+      if(f && !f.failed) return f;
+    }
+    let cand = Q.items.filter(i=>!i.played && !i.failed && i.id!==Q.curId);
+    if(!cand.length && Q.loop){
+      const pool = Q.items.filter(i=>!i.failed);
+      if(!pool.length) return null;
+      pool.forEach(i=>{ i.played = (i.id===Q.curId); });
+      cand = pool.filter(i=>!i.played);
+      if(!cand.length) cand = pool;      // 곡이 하나뿐이면 같은 곡 반복
+    }
+    if(!cand.length) return null;
+    return Q.mode==='random' ? cand[Math.floor(Math.random()*cand.length)] : cand[0];
+  }
+
+  /* ---------- 재생 엔진 ---------- */
+  function releaseStreamSource(){
+    if(audioState.stream){ audioState.stream.getTracks().forEach(t=>t.stop()); audioState.stream = null; }
+  }
+  function wireCorsEl(){
+    ensureAudioCtx();
+    const el = audioState.el;
+    if(!el._wired){ el._node = audioState.ctx.createMediaElementSource(el); el._wired = true; }
+    connectSourceNode(el._node, true);
+  }
+  function applyVolume(){
+    const v = settings.audio.volume * (Q.duck ? 0.25 : 1);
+    if(audioState.gain) audioState.gain.gain.value = v;
+    Q.plain.volume = Math.max(0, Math.min(1, v));
+    if(Q.yt && Q.ytReady){ try{ Q.yt.setVolume(Math.round(v*100)); }catch(e){} }
+  }
+  function stopBackends(){
+    const c = audioState.el;
+    c.onerror = null; c.onended = null;
+    try{ c.pause(); }catch(e){}
+    c.removeAttribute('src'); c.load();
+    const p = Q.plain;
+    p.onerror = null; p.onended = null;
+    try{ p.pause(); }catch(e){}
+    p.removeAttribute('src'); p.load();
+    clearTimeout(Q.ytWatch); clearTimeout(Q.ytLoadTimer);
+    if(Q.yt && Q.ytReady){ try{ Q.yt.stopVideo(); }catch(e){} }
+    $('#ytDock').classList.remove('show'); $('#ytNote').textContent = '';
+    Q.backend = null;
+  }
+
+  function qBlocked(){
+    Q.state = 'paused';
+    setAudioStatus('브라우저가 자동재생을 막았어요 — ▶를 눌러주세요');
+    toast('브라우저가 자동재생을 막았어요 — ▶를 눌러주세요');
+    renderQueue();
+  }
+
+  function playViaCors(item, tk){
+    const el = audioState.el;
+    wireCorsEl();
+    Q.backend = 'cors'; Q.simulated = false;
+    el.onerror = ()=>{
+      if(tk!==Q.token) return;
+      if(item.kind==='url') playViaPlain(item, tk);      // 서버가 분석을 허용하지 않을 수 있어 일반 재생으로 재시도
+      else qFail(item, '파일을 재생할 수 없어요');
+    };
+    el.onended = ()=>{ if(tk===Q.token) qNext(); };
+    el.src = item.src;
+    audioState.ctx.resume();
+    const p = el.play();
+    if(p && p.catch) p.catch(err=>{ if(tk===Q.token && err && err.name==='NotAllowedError') qBlocked(); });
+    setAudioStatus('재생 중 · '+item.title);
+  }
+
+  function playViaPlain(item, tk){
+    const c = audioState.el;
+    c.onerror = null; c.onended = null;
+    try{ c.pause(); }catch(e){}
+    c.removeAttribute('src'); c.load();
+    const el = Q.plain;
+    Q.backend = 'plain'; Q.simulated = true;
+    el.onerror = ()=>{ if(tk===Q.token) qFail(item, '직접 재생할 수 없는 주소예요'); };
+    el.onended = ()=>{ if(tk===Q.token) qNext(); };
+    el.src = item.src;
+    applyVolume();
+    const p = el.play();
+    if(p && p.catch) p.catch(err=>{ if(tk===Q.token && err && err.name==='NotAllowedError') qBlocked(); });
+    setAudioStatus('재생 중 · '+item.title+' (스펙트럼: 시뮬레이션)');
+    renderQueue();
+  }
+
+  function ytErrorText(code){
+    const fileHint = location.protocol==='file:' ? ' (파일로 열면 안 돼요 — https 주소에서 여세요)' : '';
+    if(code===101 || code===150) return '퍼가기가 금지된 영상이에요 (다른 영상을 쓰세요)';
+    if(code===100) return '삭제됐거나 비공개인 영상이에요';
+    if(code===2) return '영상 주소(ID)가 올바르지 않아요';
+    if(code===153) return '플레이어 설정 오류'+(fileHint || ' — 주소창이 https인지 확인하세요');
+    return '유튜브 재생 오류('+code+')'+fileHint;
+  }
+  function ytFail(msg){
+    const it = itemById(Q.curId);
+    if(it && Q.backend==='yt') qFail(it, msg);
+  }
+  function ensureYT(cb){
+    if(Q.ytReady){ cb(); return; }
+    Q.ytPending = cb;
+    clearTimeout(Q.ytLoadTimer);
+    Q.ytLoadTimer = setTimeout(()=>{ if(!Q.ytReady) ytFail('유튜브 플레이어를 불러오지 못했어요 (인터넷·광고차단 확인)'); }, 10000);
+    if(window.YT && window.YT.Player){ if(!Q.yt) createYT(); return; }
+    if(!document.getElementById('ytApiScript')){
+      window.onYouTubeIframeAPIReady = createYT;
+      const s = document.createElement('script');
+      s.id = 'ytApiScript'; s.src = 'https://www.youtube.com/iframe_api';
+      s.onerror = ()=>{ s.remove(); Q.ytPending = null; ytFail('유튜브 플레이어를 불러오지 못했어요 (인터넷·광고차단 확인)'); };
+      document.head.appendChild(s);
+    }
+  }
+  function createYT(){
+    const vars = { playsinline:1, rel:0, modestbranding:1 };
+    if(/^https?:$/.test(location.protocol)) vars.origin = location.origin;
+    Q.yt = new YT.Player('ytPlayer', {
+      width:'100%', height:'100%', playerVars:vars,
+      events:{
+        onReady:()=>{ Q.ytReady = true; clearTimeout(Q.ytLoadTimer); applyVolume(); const cb = Q.ytPending; Q.ytPending = null; if(cb) cb(); },
+        onStateChange:ev=>{ if(ev.data===0 && Q.backend==='yt' && Q.state==='playing') qNext(); },
+        onError:ev=>{ ytFail(ytErrorText(ev && ev.data)); }
+      }
+    });
+  }
+  function playViaYT(item, tk){
+    Q.backend = 'yt'; Q.simulated = true; Q.syncGuard = Date.now()+1500;
+    $('#ytDock').classList.add('show');
+    setAudioStatus('재생 중 · '+item.title+' (스펙트럼: 시뮬레이션)');
+    ensureYT(()=>{
+      if(tk!==Q.token) return;
+      try{ Q.yt.loadVideoById(item.ytId); }catch(e){ qFail(item, '유튜브 재생에 실패했어요'); return; }
+      applyVolume();
+      // 6초 안에 재생/버퍼링 상태가 안 되면 자동재생이 막힌 것 → 직접 ▶를 누르도록 안내
+      clearTimeout(Q.ytWatch);
+      Q.ytWatch = setTimeout(()=>{
+        if(tk!==Q.token || Q.backend!=='yt' || Q.state!=='playing') return;
+        let st = -9; try{ st = Q.yt.getPlayerState(); }catch(e){}
+        if(st!==1 && st!==3){
+          Q.state = 'paused';
+          $('#ytDock').classList.remove('collapsed'); $('#ytToggleBtn').textContent = '접기';
+          $('#ytNote').textContent = '자동재생이 막혔어요. 위 플레이어의 ▶를 직접 눌러주세요.';
+          toast('유튜브 자동재생이 막혔어요 — 오른쪽 아래 플레이어의 ▶를 눌러주세요');
+          renderQueue();
+        }
+      }, 6000);
+    });
+  }
+
+  function qPlayItem(item){
+    Q.token++; const tk = Q.token;
+    stopBackends();
+    releaseStreamSource();
+    Q.curId = item.id; item.played = true; item.failed = false;
+    if(Q.nextId===item.id) Q.nextId = null;
+    Q.state = 'playing'; Q.simulated = false;
+    audioState.mode = 'file';
+    if(item.kind==='youtube') playViaYT(item, tk); else playViaCors(item, tk);
+    applyVolume();
+    if(settings.playback.sync) startSlideshow();
+    renderQueue();
+  }
+
+  function qFail(item, msg){
+    item.failed = true; item.failMsg = msg;
+    Q.token++; const tk = Q.token;
+    stopBackends(); Q.simulated = false; Q.state = 'stopped';
+    setAudioStatus(`⚠ "${item.title}" ${msg} — 다음 곡으로 넘어가요`);
+    toast(`⚠ "${item.title}" — ${msg}`);
+    renderQueue();
+    setTimeout(()=>{ if(tk===Q.token && Q.state==='stopped') qNext(); }, 900);
+  }
+
+  function qNext(){
+    const it = qPickNext();
+    if(!it){ qStop(); setAudioStatus('재생할 다음 곡이 없어요'); return; }
+    if(Q.curId!=null && Q.curId!==it.id){ Q.history.push(Q.curId); if(Q.history.length>50) Q.history.shift(); }
+    qPlayItem(it);
+  }
+
+  function qPrev(){
+    const el = Q.backend==='cors' ? audioState.el : (Q.backend==='plain' ? Q.plain : null);
+    if(el && el.currentTime>3){ el.currentTime = 0; return; }
+    if(Q.backend==='yt' && Q.ytReady){
+      try{ if(Q.yt.getCurrentTime()>3){ Q.yt.seekTo(0, true); return; } }catch(e){}
+    }
+    while(Q.history.length){
+      const it = itemById(Q.history.pop());
+      if(it){ qPlayItem(it); return; }
+    }
+    const cur = itemById(Q.curId);
+    if(cur) qPlayItem(cur);
+  }
+
+  function qPause(){
+    if(Q.state!=='playing') return;
+    if(Q.backend==='cors') audioState.el.pause();
+    else if(Q.backend==='plain') Q.plain.pause();
+    else if(Q.backend==='yt' && Q.ytReady){ Q.syncGuard = Date.now()+1500; try{ Q.yt.pauseVideo(); }catch(e){} }
+    Q.state = 'paused';
+    if(settings.playback.sync) pauseSlideshow();
+    setAudioStatus('일시정지');
+    renderQueue();
+  }
+
+  function qResume(){
+    if(Q.state!=='paused') return;
+    if(audioState.ctx) audioState.ctx.resume();
+    if(Q.backend==='cors'){ const p = audioState.el.play(); if(p && p.catch) p.catch(()=>{}); }
+    else if(Q.backend==='plain'){ const p = Q.plain.play(); if(p && p.catch) p.catch(()=>{}); }
+    else if(Q.backend==='yt' && Q.ytReady){ Q.syncGuard = Date.now()+1500; try{ Q.yt.playVideo(); }catch(e){} }
+    Q.state = 'playing';
+    if(settings.playback.sync) startSlideshow();
+    const it = itemById(Q.curId);
+    setAudioStatus('재생 중'+(it ? ' · '+it.title : ''));
+    renderQueue();
+  }
+
+  function qStop(){
+    const was = Q.state!=='stopped';
+    Q.token++;
+    stopBackends();
+    Q.state = 'stopped'; Q.simulated = false;
+    if(audioState.mode==='file') audioState.mode = null;
+    if(was){
+      if(settings.playback.sync) pauseSlideshow();
+      setAudioStatus('정지');
+    }
+    renderQueue();
+  }
+
+  function qToggle(){
+    if(Q.state==='playing') qPause();
+    else if(Q.state==='paused') qResume();
+    else {
+      const cur = itemById(Q.curId);
+      if(cur && !cur.failed) qPlayItem(cur); else qNext();
+    }
+  }
+
+  function qToggleDuck(force){
+    Q.duck = force!==undefined ? force : !Q.duck;
+    applyVolume();
+    renderQueue();
+    setAudioStatus(Q.duck ? '대화 모드 · 볼륨 25%' : '대화 모드 해제');
+  }
+
+  ['#mtPlay','#qPlayBtn'].forEach(s=>$(s).addEventListener('click', ()=>qToggle()));
+  ['#mtStop','#qStopBtn'].forEach(s=>$(s).addEventListener('click', ()=>qStop()));
+  ['#mtNext','#qNextBtn'].forEach(s=>$(s).addEventListener('click', ()=>qNext()));
+  ['#mtDuck','#qDuckBtn'].forEach(s=>$(s).addEventListener('click', ()=>qToggleDuck()));
+  $('#qPrevBtn').addEventListener('click', ()=>qPrev());
+
+  let toastTimer = null;
+  function toast(msg){
+    const t = $('#toast');
+    t.textContent = msg; t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>t.classList.remove('show'), 6000);
+  }
+  $('#ytToggleBtn').addEventListener('click', ()=>{
+    const d = $('#ytDock');
+    d.classList.toggle('collapsed');
+    $('#ytToggleBtn').textContent = d.classList.contains('collapsed') ? '펼치기' : '접기';
+  });
+
+  /* ---------- 유튜브 플레이어 드래그 이동 (헤더를 잡고 끌기) ---------- */
+  const ytDockEl = $('#ytDock');
+  const ytHead = ytDockEl.querySelector('.yt-dock-head');
+  let ytMoved = false;      // 직접 옮겼거나 저장된 위치를 불러온 경우 true
+  let ytDrag = null;
+
+  function ytClamp(){       // 화면 크기가 바뀌거나 접기/펼치기로 크기가 달라져도 화면 안에 유지
+    if(!ytMoved || !ytDockEl.classList.contains('show')) return;
+    const r = ytDockEl.getBoundingClientRect();
+    ytDockEl.style.left = Math.max(0, Math.min(window.innerWidth - r.width, r.left))+'px';
+    ytDockEl.style.top = Math.max(0, Math.min(window.innerHeight - r.height, r.top))+'px';
+  }
+  ytHead.addEventListener('pointerdown', e=>{
+    if(e.target.closest('button')) return;           // 접기 버튼은 드래그 대상이 아님
+    const r = ytDockEl.getBoundingClientRect();
+    ytDrag = { id:e.pointerId, dx:e.clientX - r.left, dy:e.clientY - r.top };
+    ytDockEl.style.left = r.left+'px'; ytDockEl.style.top = r.top+'px';
+    ytDockEl.style.right = 'auto'; ytDockEl.style.bottom = 'auto';
+    ytMoved = true;
+    try{ ytHead.setPointerCapture(e.pointerId); }catch(err){}
+    ytDockEl.classList.add('dragging');
+    e.preventDefault();
+  });
+  ytHead.addEventListener('pointermove', e=>{
+    if(!ytDrag || e.pointerId!==ytDrag.id) return;
+    const w = ytDockEl.offsetWidth, h = ytDockEl.offsetHeight;
+    ytDockEl.style.left = Math.max(0, Math.min(window.innerWidth - w, e.clientX - ytDrag.dx))+'px';
+    ytDockEl.style.top = Math.max(0, Math.min(window.innerHeight - h, e.clientY - ytDrag.dy))+'px';
+  });
+  function ytDragEnd(e){
+    if(!ytDrag || e.pointerId!==ytDrag.id) return;
+    ytDrag = null;
+    ytDockEl.classList.remove('dragging');
+    try{ localStorage.setItem('ytDockPos', JSON.stringify({ x:parseFloat(ytDockEl.style.left), y:parseFloat(ytDockEl.style.top) })); }catch(err){}
+  }
+  ytHead.addEventListener('pointerup', ytDragEnd);
+  ytHead.addEventListener('pointercancel', ytDragEnd);
+  try{                      // 지난번에 옮겨둔 위치 복원
+    const sp = JSON.parse(localStorage.getItem('ytDockPos') || 'null');
+    if(sp && typeof sp.x==='number' && typeof sp.y==='number'){
+      ytDockEl.style.left = sp.x+'px'; ytDockEl.style.top = sp.y+'px';
+      ytDockEl.style.right = 'auto'; ytDockEl.style.bottom = 'auto';
+      ytMoved = true;
+    }
+  }catch(err){}
+  if(window.ResizeObserver) new ResizeObserver(ytClamp).observe(ytDockEl);
+  window.addEventListener('resize', ytClamp);
+
+  /* ---------- 진행 표시 · 탐색 ---------- */
+  setInterval(()=>{
+    let cur = 0, dur = 0;
+    if(Q.backend==='cors'){ cur = audioState.el.currentTime; dur = audioState.el.duration; }
+    else if(Q.backend==='plain'){ cur = Q.plain.currentTime; dur = Q.plain.duration; }
+    else if(Q.backend==='yt' && Q.ytReady){
+      try{
+        cur = Q.yt.getCurrentTime(); dur = Q.yt.getDuration();
+        if(Date.now()>Q.syncGuard){
+          const st = Q.yt.getPlayerState();
+          if(st===1) $('#ytNote').textContent = '';
+          if(st===1 && Q.state==='paused'){ Q.state = 'playing'; if(settings.playback.sync) startSlideshow(); renderQueue(); }
+          else if(st===2 && Q.state==='playing'){ Q.state = 'paused'; if(settings.playback.sync) pauseSlideshow(); renderQueue(); }
+        }
+      }catch(e){}
+    }
+    if(!Q.seeking){
+      const ok = isFinite(dur) && dur>0;
+      $('#qTime').textContent = fmtTime(cur)+' / '+(ok ? fmtTime(dur) : '--:--');
+      $('#qSeek').value = ok ? Math.round(cur/dur*1000) : 0;
+    }
+  }, 250);
+  $('#qSeek').addEventListener('input', ()=>{ Q.seeking = true; });
+  $('#qSeek').addEventListener('change', e=>{
+    const ratio = e.target.value/1000;
+    try{
+      if(Q.backend==='cors'){ const d = audioState.el.duration; if(isFinite(d)) audioState.el.currentTime = d*ratio; }
+      else if(Q.backend==='plain'){ const d = Q.plain.duration; if(isFinite(d)) Q.plain.currentTime = d*ratio; }
+      else if(Q.backend==='yt' && Q.ytReady){ Q.yt.seekTo(Q.yt.getDuration()*ratio, true); }
+    }catch(err){}
+    Q.seeking = false;
+  });
+
+  /* ---------- 시뮬레이션 스펙트럼 (소리를 분석할 수 없는 재생용) ---------- */
+  const sim = { level:0 };
+  function simActive(){
+    if(Q.state!=='playing') return false;
+    if(Q.backend==='plain') return !Q.plain.paused && !Q.plain.ended;
+    if(Q.backend==='yt'){ try{ return Q.ytReady && Q.yt.getPlayerState()===1; }catch(e){ return false; } }
+    return false;
+  }
+  function fillSimulated(freq, time){
+    sim.level += ((simActive() ? 1 : 0) - sim.level) * 0.09;
+    const L = sim.level;
+    const t = performance.now()/1000;
+    const beat = (t*1.9) % 1;
+    const pulse = Math.pow(Math.max(0, 1 - beat*2.4), 2);
+    const n = freq.length;
+    for(let i=0;i<n;i++){
+      const x = i/n;
+      const env = Math.pow(1-x, 1.5)*0.8 + 0.08;
+      const wob = 0.5 + 0.5*Math.sin(t*(1.1 + x*6) + i*0.9)*Math.sin(t*0.7 + i*0.21);
+      const kick = x<0.3 ? 1 : 0.35;
+      const v = env*(0.30 + 0.40*wob + 0.45*pulse*kick) + Math.random()*0.05;
+      freq[i] = Math.max(0, Math.min(255, v*L*255));
+    }
+    for(let i=0;i<time.length;i++){
+      time[i] = 128 + Math.sin(i*0.07 + t*7)*38*L*(0.5 + pulse*0.8) + Math.sin(i*0.23 - t*3)*14*L;
+    }
+  }
+
+  /* ---------- 저장된 주소 복원 (이미 있는 곡은 건너뜀) ---------- */
+  function qRestoreUrls(list){
+    list.forEach(s=>{
+      if(!s || !s.src) return;
+      if(Q.items.some(i=>i.src===s.src)) return;
+      qAddItem({kind:s.kind==='youtube' ? 'youtube' : 'url', src:s.src, ytId:s.ytId, title:s.title || s.src, requester:s.requester || '', lyrics:s.lyrics || '', titleEdited:!!s.titleEdited});
+    });
+    renderQueue();
+  }
+
+  // --- 탭/화면 오디오 캡처 ---
+  $('#tabCaptureBtn').addEventListener('click', async ()=>{
+    try{
+      const stream = await navigator.mediaDevices.getDisplayMedia({video:true, audio:true});
+      stream.getVideoTracks().forEach(t=>t.stop());
+      if(!stream.getAudioTracks().length){ $('#audioStatus').textContent='오디오: 캡처 실패 (오디오 공유를 선택했는지 확인하세요)'; return; }
+      ensureAudioCtx(); audioState.ctx.resume();
+      const node = audioState.ctx.createMediaStreamSource(stream);
+      qStop(); connectSourceNode(node, false); // 이미 원본 탭에서 소리가 나므로 스피커로는 보내지 않음
+      audioState.stream = stream; audioState.mode='tab';
+      $('#audioStatus').textContent = '오디오: 탭/화면 오디오 캡처 중';
+      if(settings.playback.sync) startSlideshow();
+      refreshOnair();
+      stream.getAudioTracks()[0].addEventListener('ended', ()=>{ $('#audioStatus').textContent='오디오: 캡처 종료됨'; });
+    }catch(err){ $('#audioStatus').textContent='오디오: 캡처 취소/실패'; }
+  });
+  $('#tabStopBtn').addEventListener('click', ()=>{
+    if(audioState.stream){ audioState.stream.getTracks().forEach(t=>t.stop()); audioState.stream=null; }
+    $('#audioStatus').textContent='오디오: 대기중';
+  });
+
+  // --- 마이크 ---
+  $('#micStartBtn').addEventListener('click', async ()=>{
+    try{
+      const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+      ensureAudioCtx(); audioState.ctx.resume();
+      const node = audioState.ctx.createMediaStreamSource(stream);
+      qStop(); connectSourceNode(node, false);
+      audioState.stream = stream; audioState.mode='mic';
+      $('#audioStatus').textContent='오디오: 마이크 입력 중';
+      if(settings.playback.sync) startSlideshow();
+      refreshOnair();
+    }catch(err){ $('#audioStatus').textContent='오디오: 마이크 권한 거부/실패'; }
+  });
+  $('#micStopBtn').addEventListener('click', ()=>{
+    if(audioState.stream){ audioState.stream.getTracks().forEach(t=>t.stop()); audioState.stream=null; }
+    $('#audioStatus').textContent='오디오: 대기중';
+  });
+
+  $('#volRange').addEventListener('input', e=>{
+    settings.audio.volume = e.target.value/100;
+    $('#volVal').textContent = e.target.value+'%';
+    applyVolume();
+  });
+
+  /* ============================================================
+     크로마키 (웹캠)
+  ============================================================ */
+  $('#camStartBtn').addEventListener('click', async ()=>{
+    try{
+      const stream = await navigator.mediaDevices.getUserMedia({video:{width:1280,height:720}});
+      camState.stream = stream;
+      camState.video = document.createElement('video');
+      camState.video.srcObject = stream; camState.video.muted=true; camState.video.playsInline=true;
+      await camState.video.play();
+      camState.offCanvas = document.createElement('canvas');
+      camState.offCtx = camState.offCanvas.getContext('2d', {willReadFrequently:true});
+      applyScreenMode();
+      runChromaLoop();
+    }catch(err){ alert('웹캠을 시작할 수 없어요: '+err.message); }
+  });
+  $('#camStopBtn').addEventListener('click', ()=>{
+    if(camState.stream){ camState.stream.getTracks().forEach(t=>t.stop()); camState.stream=null; }
+    cancelAnimationFrame(camState.raf);
+    $('#chromaCanvas').getContext('2d').clearRect(0,0,9999,9999);
+    applyScreenMode();
+  });
+
+  function hexToRgb(hex){
+    const v = parseInt(hex.slice(1),16);
+    return [(v>>16)&255,(v>>8)&255,v&255];
+  }
+  function runChromaLoop(){
+    const draw = ()=>{
+      camState.raf = requestAnimationFrame(draw);
+      if(!camState.video || camState.video.readyState<2) return;
+      const cw = camState.offCanvas.width = 640;
+      const ch = camState.offCanvas.height = Math.round(640 * camState.video.videoHeight/camState.video.videoWidth);
+      camState.offCtx.drawImage(camState.video,0,0,cw,ch);
+      const imgData = camState.offCtx.getImageData(0,0,cw,ch);
+      const [kr,kg,kb] = hexToRgb(settings.screen.keyColor);
+      const simT = settings.screen.similarity/100*441.7;
+      const smoothT = Math.max(1, settings.screen.smoothness/100*441.7);
+      const d = imgData.data;
+      for(let i=0;i<d.length;i+=4){
+        const r=d[i],g=d[i+1],b=d[i+2];
+        const dist = Math.sqrt((r-kr)**2+(g-kg)**2+(b-kb)**2);
+        if(dist<simT) d[i+3]=0;
+        else if(dist<simT+smoothT) d[i+3]=Math.round(255*(dist-simT)/smoothT);
+      }
+      camState.offCtx.putImageData(imgData,0,0);
+
+      const target = $('#chromaCanvas');
+      const tctx = target.getContext('2d');
+      tctx.clearRect(0,0,target.width,target.height);
+      if(settings.screen.composite){
+        const activeLayer = $('#layerA').classList.contains('active') ? $('#layerA') : $('#layerB');
+        const mediaEl = activeLayer.querySelector('img,video');
+        if(mediaEl){ try{ tctx.drawImage(mediaEl,0,0,target.width,target.height);}catch(e){} }
+      } else {
+        // 체크무늬로 투명 영역 표시(참고용) — 실제 투명 합성이 필요하면 무대 전체화면 모드 + 창 캡처(투명 배경 없음)를 활용하세요.
+        tctx.fillStyle = '#0A0D16'; tctx.fillRect(0,0,target.width,target.height);
+      }
+      tctx.drawImage(camState.offCanvas,0,0,target.width,target.height);
+    };
+    draw();
+  }
+
+  /* ============================================================
+     방송준비중
+  ============================================================ */
+  function setStandby(on){
+    settings.standby.enabled = on;
+    $('#standbyOverlay').classList.toggle('on', on);
+    $('#standbySwitch').classList.toggle('on', on);
+    $('#standbySwitch2').classList.toggle('on', on);
+    refreshOnair();
+  }
+  $('#standbyTopBtn').addEventListener('click', ()=>setStandby(!settings.standby.enabled));
+  $('#standbySwitchBtn').addEventListener('click', ()=>setStandby(!settings.standby.enabled));
+  $('#standbyImageInput').addEventListener('change', e=>{
+    const f = e.target.files[0]; if(!f) return;
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      settings.standby.image = reader.result;
+      $('#standbyImg').src = reader.result;
+      $('#standbyImg').style.display='block';
+      $('#standbyPlaceholder').style.display='none';
+    };
+    reader.readAsDataURL(f);
+  });
+
+  document.addEventListener('keydown', e=>{
+    if(['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) return;
+    if(e.code==='Space'){ e.preventDefault(); setStandby(!settings.standby.enabled); }
+    if(e.code==='ArrowRight'){ advance(1); }
+    if(e.code==='ArrowLeft'){ advance(-1); }
+    if(e.code==='Escape'){ toggleStageOnly(false); }
+    if(e.ctrlKey || e.metaKey || e.altKey) return;
+    const k = e.key.toLowerCase();
+    if(k==='p') qToggle();
+    else if(k==='s') qStop();
+    else if(k==='n') qNext();
+    else if(k==='d') qToggleDuck();
+  });
+
+  /* ============================================================
+     전체화면 무대 모드
+  ============================================================ */
+  function toggleStageOnly(force){
+    const app = document.getElementById('app');
+    const on = force!==undefined ? force : !app.classList.contains('stage-only');
+    app.classList.toggle('stage-only', on);
+    setTimeout(resizeCanvases, 50);
+  }
+  $('#fullstageBtn').addEventListener('click', ()=>toggleStageOnly());
+  $('#stageExitBtn').addEventListener('click', ()=>toggleStageOnly(false));
+
+  /* ============================================================
+     재생 설정 바인딩
+  ============================================================ */
+  $('#durationRange').addEventListener('input', e=>{
+    settings.playback.duration = +e.target.value;
+    $('#durationVal').textContent = e.target.value+'초';
+  });
+  $('#videoModeSelect').addEventListener('change', e=> settings.playback.videoMode = e.target.value);
+  $('#orderSelect').addEventListener('change', e=>{ settings.playback.order = e.target.value; buildPlayOrder(); });
+  $('#loopToggle').addEventListener('change', e=> settings.playback.loop = e.target.checked);
+  $('#syncToggle').addEventListener('change', e=> settings.playback.sync = e.target.checked);
+  $('#videoSoundToggle').addEventListener('change', e=> settings.playback.videoSound = e.target.checked);
+
+  /* ============================================================
+     전환 효과 UI
+  ============================================================ */
+  function buildEffectUI(){
+    const fixedSel = $('#fixedEffectSelect'); fixedSel.innerHTML='';
+    EFFECTS.forEach(fx=>{
+      const o=document.createElement('option'); o.value=fx; o.textContent=EFFECT_LABEL[fx]; fixedSel.appendChild(o);
+    });
+    const pool = $('#effectPool'); pool.innerHTML='';
+    EFFECTS.forEach(fx=>{
+      const b=document.createElement('button');
+      b.className='pill active'; b.textContent=EFFECT_LABEL[fx]; b.dataset.fx=fx;
+      b.addEventListener('click', ()=>{
+        const idx = settings.transitions.pool.indexOf(fx);
+        if(idx>-1){ settings.transitions.pool.splice(idx,1); b.classList.remove('active'); }
+        else { settings.transitions.pool.push(fx); b.classList.add('active'); }
+      });
+      pool.appendChild(b);
+    });
+  }
+  buildEffectUI();
+  $('#transitionModeSelect').addEventListener('change', e=>{
+    settings.transitions.mode = e.target.value;
+    $('#fixedEffectBox').style.display = settings.transitions.mode==='fixed'?'':'none';
+    $('#effectPoolBox').style.display = settings.transitions.mode==='random'?'':'none';
+  });
+  $('#fixedEffectSelect').addEventListener('change', e=> settings.transitions.fixed = e.target.value);
+  $('#transDurRange').addEventListener('input', e=>{
+    settings.transitions.duration = +e.target.value;
+    $('#transDurVal').textContent = e.target.value+'초';
+  });
+
+  /* ============================================================
+     스펙트럼 UI 바인딩
+  ============================================================ */
+  $('#spectrumEnabled').addEventListener('change', e=> settings.spectrum.enabled = e.target.checked);
+  $('#spectrumStyle').addEventListener('change', e=> settings.spectrum.style = e.target.value);
+  $('#spectrumPosition').addEventListener('change', e=> settings.spectrum.position = e.target.value);
+  $('#specColor1').addEventListener('input', e=> settings.spectrum.color1 = e.target.value);
+  $('#specColor2').addEventListener('input', e=> settings.spectrum.color2 = e.target.value);
+  $('#sensRange').addEventListener('input', e=>{ settings.spectrum.sensitivity=+e.target.value; $('#sensVal').textContent=e.target.value; });
+  $('#opacRange').addEventListener('input', e=>{ settings.spectrum.opacity=e.target.value/100; $('#opacVal').textContent=e.target.value+'%'; });
+  $('#mirrorToggle').addEventListener('change', e=> settings.spectrum.mirror = e.target.checked);
+
+  /* ============================================================
+     화면 소스(크로마키) UI 바인딩
+  ============================================================ */
+  $('#keyColor').addEventListener('input', e=>{ settings.screen.keyColor=e.target.value; $('#keyColorVal').textContent=e.target.value.toUpperCase(); });
+  $('#similarity').addEventListener('input', e=>{ settings.screen.similarity=+e.target.value; $('#similarityVal').textContent=e.target.value; });
+  $('#smoothness').addEventListener('input', e=>{ settings.screen.smoothness=+e.target.value; $('#smoothnessVal').textContent=e.target.value; });
+  $('#compositeToggle').addEventListener('change', e=>{ settings.screen.composite=e.target.checked; applyScreenMode(); });
+
+  /* ============================================================
+     채팅
+  ============================================================ */
+  const CHAT_NAMES = [['시청자','c1'],['방문자','c2'],['음악러버','c3'],['익명','c4']];
+  function addChatMsg(name, cls, text){
+    const log = $('#chatLog');
+    const empty = log.querySelector('.chat-empty'); if(empty) empty.remove();
+    const div = document.createElement('div');
+    div.className='chat-msg';
+    div.innerHTML = `<span class="name ${cls}">${name}</span><span class="txt"></span>`;
+    div.querySelector('.txt').textContent = text;
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+  }
+  $('#chatSendBtn').addEventListener('click', sendChat);
+  $('#chatInput').addEventListener('keydown', e=>{ if(e.key==='Enter') sendChat(); });
+  function sendChat(){
+    const v = $('#chatInput').value.trim(); if(!v) return;
+    addChatMsg('나','c1', v);
+    $('#chatInput').value='';
+  }
+  $('#chatEmbedApplyBtn').addEventListener('click', ()=>{
+    const url = $('#chatEmbedInput').value.trim();
+    settings.chat.embedUrl = url;
+    applyChatEmbed();
+  });
+  $('#chatEmbedClearBtn').addEventListener('click', ()=>{
+    settings.chat.embedUrl=''; $('#chatEmbedInput').value=''; applyChatEmbed();
+  });
+  function applyChatEmbed(){
+    if(settings.chat.embedUrl){
+      $('#chatIframe').src = settings.chat.embedUrl;
+      $('#chatEmbedWrap').style.display='block';
+      $('#chatDemo').style.display='none';
+    } else {
+      $('#chatEmbedWrap').style.display='none';
+      $('#chatDemo').style.display='flex';
+    }
+  }
+
+  /* ============================================================
+     설정 저장 / 불러오기 / JSON
+  ============================================================ */
+  function collectSettings(){
+    settings.queue = Object.assign({mode:'sequential', loop:true}, settings.queue || {});
+    settings.queue.urls = Q.items.filter(i=>i.kind!=='file').map(i=>({kind:i.kind, src:i.src, ytId:i.ytId, title:i.title, requester:i.requester, lyrics:i.lyrics, titleEdited:i.titleEdited}));
+    return JSON.parse(JSON.stringify(settings));
+  }
+
+  function applyAllSettingsToUI(){
+    // 화면 소스
+    $$('#screenModePills .pill').forEach(p=>p.classList.toggle('active', p.dataset.mode===settings.screen.mode));
+    $('#folderModeBox').style.display = settings.screen.mode==='folder'?'':'none';
+    $('#chromaModeBox').style.display = settings.screen.mode==='chroma'?'':'none';
+    $('#keyColor').value = settings.screen.keyColor; $('#keyColorVal').textContent = settings.screen.keyColor.toUpperCase();
+    $('#similarity').value = settings.screen.similarity; $('#similarityVal').textContent = settings.screen.similarity;
+    $('#smoothness').value = settings.screen.smoothness; $('#smoothnessVal').textContent = settings.screen.smoothness;
+    $('#compositeToggle').checked = settings.screen.composite;
+
+    // 재생
+    $('#durationRange').value = settings.playback.duration; $('#durationVal').textContent = settings.playback.duration+'초';
+    $('#videoModeSelect').value = settings.playback.videoMode;
+    $('#orderSelect').value = settings.playback.order;
+    $('#loopToggle').checked = settings.playback.loop;
+    $('#syncToggle').checked = settings.playback.sync;
+    $('#videoSoundToggle').checked = settings.playback.videoSound;
+
+    // 전환
+    $('#transitionModeSelect').value = settings.transitions.mode;
+    $('#fixedEffectBox').style.display = settings.transitions.mode==='fixed'?'':'none';
+    $('#effectPoolBox').style.display = settings.transitions.mode==='random'?'':'none';
+    $('#fixedEffectSelect').value = settings.transitions.fixed;
+    $$('#effectPool .pill').forEach(b=> b.classList.toggle('active', settings.transitions.pool.includes(b.dataset.fx)) );
+    $('#transDurRange').value = settings.transitions.duration; $('#transDurVal').textContent = settings.transitions.duration+'초';
+
+    // 스펙트럼
+    $('#spectrumEnabled').checked = settings.spectrum.enabled;
+    $('#spectrumStyle').value = settings.spectrum.style;
+    $('#spectrumPosition').value = settings.spectrum.position;
+    $('#specColor1').value = settings.spectrum.color1;
+    $('#specColor2').value = settings.spectrum.color2;
+    $('#sensRange').value = settings.spectrum.sensitivity; $('#sensVal').textContent = settings.spectrum.sensitivity;
+    $('#opacRange').value = Math.round(settings.spectrum.opacity*100); $('#opacVal').textContent = Math.round(settings.spectrum.opacity*100)+'%';
+    $('#mirrorToggle').checked = settings.spectrum.mirror;
+
+    // 오디오
+    $('#audioSourceSelect').value = settings.audio.source;
+    $('#audioFileBox').style.display = settings.audio.source==='file'?'':'none';
+    $('#audioTabBox').style.display = settings.audio.source==='tab'?'':'none';
+    $('#audioMicBox').style.display = settings.audio.source==='mic'?'':'none';
+    $('#volRange').value = Math.round(settings.audio.volume*100); $('#volVal').textContent = Math.round(settings.audio.volume*100)+'%';
+
+    // 방송준비중
+    setStandby(settings.standby.enabled);
+    if(settings.standby.image){ $('#standbyImg').src = settings.standby.image; $('#standbyImg').style.display='block'; $('#standbyPlaceholder').style.display='none'; }
+
+    // 채팅
+    $('#chatEmbedInput').value = settings.chat.embedUrl || '';
+    applyChatEmbed();
+
+    // 신청곡 대기열 (불러온 주소는 기존 대기열에 이어 붙이고, 이미 있는 곡은 건너뜀)
+    settings.queue = Object.assign({mode:'sequential', loop:true, urls:[]}, settings.queue || {});
+    Q.mode = settings.queue.mode; Q.loop = settings.queue.loop;
+    $('#qMode').value = Q.mode; $('#qLoop').checked = Q.loop;
+    qRestoreUrls(settings.queue.urls || []);
+    applyVolume();
+
+    applyScreenMode();
+  }
+
+  function flashStatus(el, msg, ok=true){
+    el.textContent = msg; el.classList.toggle('ok', ok);
+    setTimeout(()=>{ el.textContent='\u00A0'; }, 2500);
+  }
+
+  $('#saveLocalBtn').addEventListener('click', ()=>{
+    localStorage.setItem('broadcastConsoleSettings', JSON.stringify(collectSettings()));
+    flashStatus($('#settingsStatus'), '저장됨 ✓ (이 브라우저에 보관)');
+  });
+  $('#loadLocalBtn').addEventListener('click', ()=>{
+    const raw = localStorage.getItem('broadcastConsoleSettings');
+    if(!raw){ flashStatus($('#settingsStatus'), '저장된 설정이 없어요', false); return; }
+    settings = Object.assign(defaultSettings(), JSON.parse(raw));
+    applyAllSettingsToUI();
+    flashStatus($('#settingsStatus'), '불러옴 ✓');
+  });
+  $('#exportJsonBtn').addEventListener('click', ()=>{
+    const blob = new Blob([JSON.stringify(collectSettings(), null, 2)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    const ts = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+    a.download = `broadcast-console-settings-${ts}.json`;
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 3000);
+  });
+  $('#importJsonInput').addEventListener('change', e=>{
+    const f = e.target.files[0]; if(!f) return;
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      try{
+        const obj = JSON.parse(reader.result);
+        settings = Object.assign(defaultSettings(), obj);
+        applyAllSettingsToUI();
+        flashStatus($('#settingsStatus'), '가져오기 완료 ✓');
+      }catch(err){ flashStatus($('#settingsStatus'), 'JSON 파일을 읽을 수 없어요', false); }
+    };
+    reader.readAsText(f);
+  });
+  $('#resetBtn').addEventListener('click', ()=>{
+    if(!confirm('모든 설정을 초기값으로 되돌릴까요?')) return;
+    settings = defaultSettings();
+    applyAllSettingsToUI();
+    flashStatus($('#settingsStatus'), '초기화됨');
+  });
+
+  /* ============================================================
+     초기화
+  ============================================================ */
+  applyAllSettingsToUI();
+  refreshOnair();
+  window.addEventListener('resize', resizeCanvases);
+})();
+</script>
+</body>
+</html>
