@@ -639,14 +639,32 @@
                   <option value="circular">원형(라디얼)</option>
                   <option value="particles">파티클</option>
                   <option value="dots">도트 그리드</option>
+                  <optgroup label="── 추가 스타일 (CD 가사 믹서)">
+                    <option value="bars2">BARS (얇은 막대)</option>
+                    <option value="chunky">CHUNKY (굵은 막대)</option>
+                    <option value="blocks">LED BLOCKS (블록형)</option>
+                    <option value="wavethin">WAVE (얇은 파형)</option>
+                    <option value="wavefill">WAVE FILL (굵은 채움 파형)</option>
+                    <option value="dotsrow">DOTS (점 이퀄라이저)</option>
+                    <option value="stars">STARS (반짝이는 별)</option>
+                    <option value="mirror2">MIRROR (위아래 대칭)</option>
+                    <option value="starburst">STARBURST (반짝이는 스파이크)</option>
+                    <option value="neonrings">NEON RINGS (퍼지는 링)</option>
+                    <option value="randomrings">RANDOM RINGS (화면 전체 랜덤 파동)</option>
+                    <option value="flame">FLAME (불꽃)</option>
+                  </optgroup>
                 </select>
               </div>
               <div class="field">
                 <label>배치</label>
                 <select id="spectrumPosition">
                   <option value="bottom">하단 바</option>
+                  <option value="top">상단 바</option>
+                  <option value="side">좌우 측면</option>
+                  <option value="around">중앙 원형(둘레)</option>
                   <option value="full">전체 화면</option>
                 </select>
+                <div class="hint" style="font-size:11px;opacity:.7;margin-top:4px">추가 스타일은 모든 배치에서 동작해요. RANDOM RINGS는 배치와 상관없이 화면 전체에 나타나요. 기존 막대·원형·파티클·도트 그리드는 하단/전체만 적용돼요.</div>
               </div>
             </div>
             <div class="row2">
@@ -660,6 +678,14 @@
             <div class="field">
               <label>불투명도 <span class="val" id="opacVal">90%</span></label>
               <input type="range" id="opacRange" min="10" max="100" value="90">
+            </div>
+            <div class="field">
+              <label>크기(영역 높이·반지름) <span class="val" id="specSizeVal">100%</span></label>
+              <input type="range" id="specSize" min="40" max="160" step="5" value="100">
+            </div>
+            <div class="field">
+              <label>글로우(빛 번짐) <span class="val" id="specGlowVal">100%</span></label>
+              <input type="range" id="specGlow" min="0" max="250" step="10" value="100">
             </div>
             <div class="toggle-row"><div class="lbl">좌우 대칭(미러)</div><input type="checkbox" id="mirrorToggle" checked></div>
           </div>
@@ -850,7 +876,7 @@
       version:1,
       playback:{ duration:6, order:'sequential', loop:true, videoMode:'natural', sync:true, videoSound:false },
       transitions:{ mode:'random', fixed:'fade', pool:[...EFFECTS], duration:0.9 },
-      spectrum:{ enabled:true, style:'bars', position:'bottom', color1:'#F2B84B', color2:'#FF3E7F', sensitivity:1.2, opacity:0.9, mirror:true },
+      spectrum:{ enabled:true, style:'bars', position:'bottom', color1:'#F2B84B', color2:'#FF3E7F', sensitivity:1.2, opacity:0.9, mirror:true, size:100, glow:100 },
       audio:{ source:'file', volume:0.9 },
       screen:{ mode:'folder', keyColor:'#00ff66', similarity:38, smoothness:12, composite:false },
       standby:{ enabled:false, image:null },
@@ -1121,6 +1147,11 @@
     const bandY = h - bandH;
     const sens = settings.spectrum.sensitivity;
 
+    if(NEW_STYLES.includes(settings.spectrum.style)){
+      drawNewSpectrum(settings.spectrum.style, w, h, freqData, timeData);
+      specCtx.restore();
+      return;
+    }
     switch(settings.spectrum.style){
       case 'bars': drawBars(freqData, bandY, bandH, w, sens, settings.spectrum.mirror); break;
       case 'mirrorBars': drawBars(freqData, bandY, bandH, w, sens, true); break;
@@ -1194,6 +1225,461 @@
       }
     }
   }
+
+  /* ===== 업로드된 CD 가사 믹서의 스펙트럼 형태 이식 (specCtx 기준) ===== */
+  const NEW_STYLES = ['chunky','blocks','wavefill','dotsrow','stars','starburst','neonrings','randomrings','flame','wavethin','mirror2','bars2'];
+  const GL = v => v * (settings.spectrum.glow/100);
+  const SZ = () => settings.spectrum.size/100;
+  const hexRgb = h => { const m=/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(h||''); return m?[parseInt(m[1],16),parseInt(m[2],16),parseInt(m[3],16)]:[242,184,75]; };
+  const SENS_BASE = 1.2;
+  function getFreqVal(i, N, useReal, freq, t){
+    if(useReal){
+      const idx = Math.floor((i / N) * (freq.length * 0.55));
+      return Math.min(1, (freq[idx] / 255) * (settings.spectrum.sensitivity / SENS_BASE));
+    }
+    return Math.max(0, 0.35 + 0.45 * Math.sin(t * 4 + i * 0.5));
+  }
+
+function seededRandom(seed) {
+  const x = Math.sin(seed * 12.9898) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+// Scatters several ripple points across the whole canvas. Each point has a
+// fixed position and its own cycle length/phase, and is tied to a different
+// frequency band, so ripples of different sizes pop up all over the screen
+// in time with the beat rather than growing from one shared center.
+function drawRandomRings(t, cw, ch, useReal, freq, accentRGB) {
+  const N = 14;
+  const K = 3; // concentric ripples per splash, staggered in phase
+  const minDim = Math.min(cw, ch);
+  for (let i = 0; i < N; i++) {
+    // Slower, per-slot cycle. Each time it wraps around, cycleIndex ticks
+    // up and the slot picks a brand-new random spot — so splashes keep
+    // popping up and fading out in different places instead of always
+    // coming from the same fixed points.
+    const period = 2.4 + seededRandom(i * 11.3) * 2.8; // ~2.4s–5.2s per splash
+    const phaseOff = seededRandom(i * 5.9 + 20);
+    const cyclePos = t / period + phaseOff;
+    const cycleIndex = Math.floor(cyclePos);
+    const localPhase = cyclePos - cycleIndex;
+
+    const seedBase = i * 97.7 + cycleIndex * 13.37;
+    const px = cw * (0.08 + seededRandom(seedBase + 1) * 0.84);
+    const py = ch * (0.08 + seededRandom(seedBase + 2) * 0.84);
+    const bandFrac = seededRandom(seedBase + 3);
+
+    let v;
+    if (useReal) {
+      const bandIdx = Math.floor(bandFrac * freq.length * 0.7);
+      v = freq[bandIdx] / 255;
+    } else {
+      v = Math.max(0, 0.35 + 0.45 * Math.sin(t * 3 + i * 1.7));
+    }
+    const baseR = minDim * (0.02 + v * 0.09);
+
+    // K rings from the same splash, each starting a little later than the
+    // last. An ease-out curve makes them shoot out then gradually slow and
+    // fade, which reads as a much more natural ripple than a linear grow.
+    for (let k = 0; k < K; k++) {
+      const delay = k * 0.16;
+      const ringPhase = localPhase - delay;
+      if (ringPhase <= 0 || ringPhase >= 1) continue;
+      const eased = 1 - Math.pow(1 - ringPhase, 2);
+      const r = baseR * (0.25 + eased * 2.8);
+      const alpha = Math.max(0, (1 - ringPhase) * (0.18 + v * 0.6)) * (1 - k * 0.15);
+      if (alpha <= 0.01) continue;
+
+      specCtx.beginPath();
+      specCtx.arc(px, py, r, 0, Math.PI * 2);
+      specCtx.strokeStyle = `rgba(${accentRGB.join(',')},${alpha})`;
+      specCtx.shadowColor = `rgba(${accentRGB.join(',')},0.9)`;
+      specCtx.shadowBlur = GL(10 + v * 8);
+      specCtx.lineWidth = Math.max(0.8, (1.4 + v * 3.5) * (1 - k * 0.2));
+      specCtx.stroke();
+    }
+  }
+}
+
+function drawSpectrumAround(tt, style, useReal, freq, cx, cy, baseR, accentRGB) {
+  if (style === 'neonrings') { drawNeonRingsAround(tt, useReal, freq, cx, cy, baseR, accentRGB); return; }
+  if (style === 'starburst') { drawStarburstAround(tt, useReal, freq, cx, cy, baseR, accentRGB); return; }
+
+  const thick = ['chunky', 'artbars', 'blocks', 'wavefill', 'flame'].includes(style);
+  const N = thick ? 44 : 72;
+  for (let i = 0; i < N; i++) {
+    const v = getFreqVal(i, N, useReal, freq, tt);
+    const ang = (i / N) * Math.PI * 2 - Math.PI / 2;
+    const len = baseR * 0.4 * (0.12 + v);
+    const x1 = cx + Math.cos(ang) * (baseR * 1.06);
+    const y1 = cy + Math.sin(ang) * (baseR * 1.06);
+    const x2 = cx + Math.cos(ang) * (baseR * 1.06 + len);
+    const y2 = cy + Math.sin(ang) * (baseR * 1.06 + len);
+    specCtx.strokeStyle = `rgba(${accentRGB.join(',')},${0.35 + v * 0.6})`;
+    specCtx.shadowColor = `rgba(${accentRGB.join(',')},0.8)`;
+    specCtx.shadowBlur = GL(thick ? 10 : 6);
+    specCtx.lineWidth = thick ? 6 : 2.5;
+    specCtx.lineCap = 'round';
+    specCtx.beginPath();
+    specCtx.moveTo(x1, y1);
+    specCtx.lineTo(x2, y2);
+    specCtx.stroke();
+  }
+}
+
+function drawNeonRingsAround(tt, useReal, freq, cx, cy, baseR, accentRGB) {
+  let bass = 0.4;
+  if (useReal) {
+    const n = Math.max(1, Math.floor(freq.length * 0.12));
+    let sum = 0;
+    for (let i = 0; i < n; i++) sum += freq[i];
+    bass = sum / (n * 255);
+  } else {
+    bass = 0.4 + 0.3 * Math.sin(tt * 3);
+  }
+  const K = 4;
+  for (let k = 0; k < K; k++) {
+    const phase = ((tt * (0.35 + bass * 0.5)) + k / K) % 1;
+    const r = baseR * (1.08 + phase * 1.6);
+    const alpha = Math.max(0, (1 - phase) * (0.25 + bass * 0.5));
+    specCtx.beginPath();
+    specCtx.arc(cx, cy, r, 0, Math.PI * 2);
+    specCtx.strokeStyle = `rgba(${accentRGB.join(',')},${alpha})`;
+    specCtx.shadowColor = `rgba(${accentRGB.join(',')},0.9)`;
+    specCtx.shadowBlur = GL(16);
+    specCtx.lineWidth = 3 + bass * 4;
+    specCtx.stroke();
+  }
+}
+
+// Multiple ring-burst clusters spread along a rectangular area — the
+// non-circular counterpart of drawNeonRingsAround, used for top/bottom/side.
+function drawNeonRingsLinear(areaX, areaW, areaY, areaH, useReal, freq, tt, accentRGB) {
+  specCtx.save();
+  specCtx.beginPath();
+  specCtx.rect(areaX - areaH, areaY - areaH * 0.5, areaW + areaH * 2, areaH * 2);
+  specCtx.clip();
+  const clusters = 3;
+  const baseR = areaH * 0.3;
+  for (let c = 0; c < clusters; c++) {
+    const cx = areaX + areaW * ((c + 0.5) / clusters);
+    const cy = areaY + areaH / 2;
+    drawNeonRingsAround(tt + c * 0.37, useReal, freq, cx, cy, baseR, accentRGB);
+  }
+  specCtx.restore();
+}
+
+function drawStarburstAround(tt, useReal, freq, cx, cy, baseR, accentRGB) {
+  const N = 32;
+  for (let i = 0; i < N; i++) {
+    const v = getFreqVal(i, N, useReal, freq, tt);
+    const ang = (i / N) * Math.PI * 2 - Math.PI / 2;
+    const len = baseR * 0.55 * (0.15 + v);
+    const x1 = cx + Math.cos(ang) * (baseR * 1.05);
+    const y1 = cy + Math.sin(ang) * (baseR * 1.05);
+    const x2 = cx + Math.cos(ang) * (baseR * 1.05 + len);
+    const y2 = cy + Math.sin(ang) * (baseR * 1.05 + len);
+    specCtx.strokeStyle = `rgba(${accentRGB.join(',')},${0.3 + v * 0.6})`;
+    specCtx.shadowColor = `rgba(${accentRGB.join(',')},0.9)`;
+    specCtx.shadowBlur = GL(8);
+    specCtx.lineWidth = 2;
+    specCtx.beginPath(); specCtx.moveTo(x1, y1); specCtx.lineTo(x2, y2); specCtx.stroke();
+    if (v > 0.45) drawSparkle(x2, y2, 4 + v * 8, accentRGB, v);
+  }
+}
+
+function drawSparkle(x, y, size, accentRGB, v) {
+  specCtx.save();
+  specCtx.translate(x, y);
+  specCtx.fillStyle = `rgba(255,255,255,${0.5 + v * 0.5})`;
+  specCtx.shadowColor = `rgba(${accentRGB.join(',')},1)`;
+  specCtx.shadowBlur = GL(10);
+  specCtx.beginPath();
+  specCtx.moveTo(0, -size); specCtx.lineTo(size * 0.28, -size * 0.28); specCtx.lineTo(size, 0);
+  specCtx.lineTo(size * 0.28, size * 0.28); specCtx.lineTo(0, size); specCtx.lineTo(-size * 0.28, size * 0.28);
+  specCtx.lineTo(-size, 0); specCtx.lineTo(-size * 0.28, -size * 0.28);
+  specCtx.closePath();
+  specCtx.fill();
+  specCtx.restore();
+}
+
+function rectPath(x, y, w, h, rad) {
+  const r = Math.min(rad, w / 2, h / 2);
+  specCtx.beginPath();
+  specCtx.moveTo(x + r, y);
+  specCtx.arcTo(x + w, y, x + w, y + h, r);
+  specCtx.arcTo(x + w, y + h, x, y + h, r);
+  specCtx.arcTo(x, y + h, x, y, r);
+  specCtx.arcTo(x, y, x + w, y, r);
+  specCtx.closePath();
+}
+
+function drawLEDBlocks(areaX, areaY, areaW, areaH, useReal, freq, tt, accentRGB) {
+  const N = 18, segs = 8;
+  const barW = areaW / N * 0.62;
+  const gap = areaW / N - barW;
+  const segH = areaH / segs * 0.72;
+  const segGap = areaH / segs * 0.28;
+  for (let i = 0; i < N; i++) {
+    const v = getFreqVal(i, N, useReal, freq, tt);
+    const lit = Math.max(1, Math.round(v * segs));
+    const x = areaX + i * (barW + gap);
+    for (let s = 0; s < segs; s++) {
+      const y = areaY + areaH - (s + 1) * (segH + segGap) + segGap;
+      const on = s < lit;
+      const frac = s / segs;
+      let col;
+      if (!on) col = 'rgba(255,255,255,0.06)';
+      else if (frac > 0.78) col = 'rgba(255,90,90,0.95)';
+      else if (frac > 0.5) col = 'rgba(255,220,90,0.95)';
+      else col = `rgba(${accentRGB.join(',')},0.95)`;
+      specCtx.save();
+      if (on) { specCtx.shadowColor = col; specCtx.shadowBlur = GL(10); }
+      specCtx.fillStyle = col;
+      rectPath(x, y, barW, segH, 2);
+      specCtx.fill();
+      specCtx.restore();
+    }
+  }
+}
+
+function drawWaveFill(areaX, areaW, areaY, areaH, useReal, time, tt, accentRGB) {
+  const N = 160;
+  const midY = areaY + areaH / 2;
+  const pts = [];
+  for (let i = 0; i < N; i++) {
+    const x = areaX + (areaW / (N - 1)) * i;
+    let v;
+    if (useReal) v = (time[Math.floor((i / N) * time.length)] - 128) / 128;
+    else v = Math.sin(tt * 5 + i * 0.25) * 0.6;
+    pts.push([x, midY + v * areaH * 0.48]);
+  }
+  specCtx.save();
+  specCtx.beginPath();
+  specCtx.moveTo(pts[0][0], midY);
+  pts.forEach(p => specCtx.lineTo(p[0], p[1]));
+  specCtx.lineTo(pts[pts.length - 1][0], midY);
+  specCtx.closePath();
+  const grad = specCtx.createLinearGradient(0, areaY, 0, areaY + areaH);
+  grad.addColorStop(0, `rgba(${accentRGB.join(',')},0.05)`);
+  grad.addColorStop(0.5, `rgba(${accentRGB.join(',')},0.55)`);
+  grad.addColorStop(1, `rgba(${accentRGB.join(',')},0.05)`);
+  specCtx.fillStyle = grad;
+  specCtx.shadowColor = `rgba(${accentRGB.join(',')},0.9)`;
+  specCtx.shadowBlur = GL(22);
+  specCtx.fill();
+
+  specCtx.beginPath();
+  pts.forEach((p, i) => { if (i === 0) specCtx.moveTo(p[0], p[1]); else specCtx.lineTo(p[0], p[1]); });
+  specCtx.lineWidth = 4;
+  specCtx.strokeStyle = '#ffffff';
+  specCtx.shadowBlur = GL(14);
+  specCtx.stroke();
+  specCtx.restore();
+}
+
+function drawFlames(areaX, areaW, areaY, areaH, useReal, freq, tt, accentRGB) {
+  const N = 26;
+  const baseY = areaY + areaH;
+  specCtx.save();
+  for (let i = 0; i < N; i++) {
+    const v = getFreqVal(i, N, useReal, freq, tt);
+    const w = areaW / N;
+    const x = areaX + i * w + w / 2;
+    const flick = 0.75 + 0.25 * Math.sin(tt * 9 + i * 1.7);
+    const h = areaH * (0.15 + v * 0.85) * flick;
+    const grad = specCtx.createLinearGradient(0, baseY, 0, baseY - h);
+    grad.addColorStop(0, `rgba(${accentRGB.join(',')},0.95)`);
+    grad.addColorStop(0.55, 'rgba(255,150,40,0.85)');
+    grad.addColorStop(1, 'rgba(255,240,150,0.9)');
+    specCtx.fillStyle = grad;
+    specCtx.shadowColor = 'rgba(255,150,40,0.8)';
+    specCtx.shadowBlur = GL(16);
+    specCtx.beginPath();
+    specCtx.moveTo(x - w * 0.34, baseY);
+    specCtx.quadraticCurveTo(x - w * 0.5, baseY - h * 0.5, x, baseY - h);
+    specCtx.quadraticCurveTo(x + w * 0.5, baseY - h * 0.5, x + w * 0.34, baseY);
+    specCtx.closePath();
+    specCtx.fill();
+  }
+  specCtx.restore();
+}
+
+function drawStarburstBars(areaX, areaW, areaY, areaH, useReal, freq, tt, accentRGB) {
+  const N = 40;
+  const color = `rgb(${accentRGB.join(',')})`;
+  for (let i = 0; i < N; i++) {
+    const v = getFreqVal(i, N, useReal, freq, tt);
+    const x = areaX + (areaW / (N - 1)) * i;
+    const h = areaH * (0.12 + v * 0.88);
+    const yTop = areaY + areaH - h;
+    specCtx.strokeStyle = color;
+    specCtx.shadowColor = color;
+    specCtx.shadowBlur = GL(10);
+    specCtx.lineWidth = 2.5;
+    specCtx.beginPath(); specCtx.moveTo(x, areaY + areaH); specCtx.lineTo(x, yTop); specCtx.stroke();
+    if (v > 0.5) drawSparkle(x, yTop, 4 + v * 7, accentRGB, v);
+  }
+}
+function drawSpectrumLinear(tt, style, pos, useReal, freq, time, cw, ch, accentRGB) {
+  const cover = null;
+  const color = `rgb(${accentRGB.join(',')})`;
+
+  if (style === 'neonrings') {
+    let areaX, areaY, areaW, areaH;
+    if (pos === 'side') {
+      areaX = cw * 0.06; areaY = ch * 0.15; areaW = cw * 0.88; areaH = ch * 0.7;
+    } else {
+      areaW = cw * 0.86; areaX = (cw - areaW) / 2; areaH = SZ() * ch * 0.18;
+      areaY = pos === 'top' ? ch * 0.035 : ch - areaH - ((false) ? ch * 0.13 : ch * 0.035);
+    }
+    drawNeonRingsLinear(areaX, areaW, areaY, areaH, useReal, freq, tt, accentRGB);
+    return;
+  }
+
+  if (pos === 'side') {
+    const thickSide = ['chunky', 'artbars', 'blocks', 'wavefill', 'flame'].includes(style);
+    const N = thickSide ? 14 : 24;
+    const areaH = Math.min(ch*0.92, ch * 0.7 * SZ()), areaY = (ch - areaH) / 2;
+    for (const side of [0, 1]) {
+      for (let i = 0; i < N; i++) {
+        const v = getFreqVal(i, N, useReal, freq, tt);
+        const barH = areaH / N * 0.72;
+        const gap = areaH / N * 0.28;
+        const y = areaY + i * (barH + gap);
+        const w = (thickSide ? cw * 0.09 : cw * 0.045) * (0.2 + v);
+        const x = side === 0 ? 0 : cw - w;
+        drawSpecRect(x, y, w, barH, cover, cw, ch, color, v);
+      }
+    }
+    return;
+  }
+
+  // top / bottom
+  const areaW = cw * 0.86, areaX = (cw - areaW) / 2;
+  const areaH = SZ() * ch * (style === 'wave' ? 0.14 : style === 'blocks' ? 0.19 : 0.16);
+  const areaY = pos === 'top' ? ch * 0.035 : ch - areaH - ch * 0.035;
+
+  if (style === 'wave') {
+    specCtx.lineWidth = 3;
+    specCtx.shadowColor = color;
+    specCtx.shadowBlur = GL(14);
+    specCtx.strokeStyle = color;
+    specCtx.beginPath();
+    const N = 220;
+    for (let i = 0; i < N; i++) {
+      const x = areaX + (areaW / (N - 1)) * i;
+      let v;
+      if (useReal) { v = (time[Math.floor((i / N) * time.length)] - 128) / 128; }
+      else { v = Math.sin(tt * 5 + i * 0.25) * 0.5; }
+      const y = areaY + areaH / 2 + v * areaH / 2;
+      if (i === 0) specCtx.moveTo(x, y); else specCtx.lineTo(x, y);
+    }
+    specCtx.stroke();
+    return;
+  }
+  if (style === 'wavefill') {
+    drawWaveFill(areaX, areaW, areaY, areaH, useReal, time, tt, accentRGB);
+    return;
+  }
+  if (style === 'dots') {
+    const N = 40;
+    specCtx.shadowColor = color; specCtx.shadowBlur = GL(12);
+    for (let i = 0; i < N; i++) {
+      const v = getFreqVal(i, N, useReal, freq, tt);
+      const x = areaX + (areaW / (N - 1)) * i;
+      const baseY = areaY + areaH;
+      const count = Math.ceil(v * 7);
+      for (let d = 0; d < count; d++) {
+        const y = baseY - d * (areaH / 8);
+        specCtx.fillStyle = `rgba(${accentRGB.join(',')},${0.9 - d * 0.09})`;
+        specCtx.beginPath();
+        specCtx.arc(x, y, Math.max(2, areaH / 24), 0, Math.PI * 2);
+        specCtx.fill();
+      }
+    }
+    return;
+  }
+  if (style === 'stars') {
+    const N = 30;
+    for (let i = 0; i < N; i++) {
+      const v = getFreqVal(i, N, useReal, freq, tt);
+      const x = areaX + (areaW / (N - 1)) * i;
+      const baseY = areaY + areaH;
+      const count = Math.ceil(v * 6);
+      for (let d = 0; d < count; d++) {
+        const y = baseY - d * (areaH / 7);
+        const twinkle = 0.6 + 0.4 * Math.sin(tt * 6 + i * 1.3 + d);
+        drawSparkle(x, y, Math.max(3, areaH / 26) * twinkle, accentRGB, v);
+      }
+    }
+    return;
+  }
+  if (style === 'flame') { drawFlames(areaX, areaW, areaY, areaH, useReal, freq, tt, accentRGB); return; }
+  if (style === 'blocks') { drawLEDBlocks(areaX, areaY, areaW, areaH, useReal, freq, tt, accentRGB); return; }
+  if (style === 'starburst') { drawStarburstBars(areaX, areaW, areaY, areaH, useReal, freq, tt, accentRGB); return; }
+
+  // bars / chunky / artbars / mirror
+  const N = (style === 'chunky' || style === 'artbars') ? 24 : 40;
+  const barW = areaW / N * (style === 'chunky' || style === 'artbars' ? 0.6 : 0.68);
+  const gap = areaW / N - barW;
+  for (let i = 0; i < N; i++) {
+    const v = getFreqVal(i, N, useReal, freq, tt);
+    const h = areaH * (0.12 + v * 0.88);
+    const x = areaX + i * (barW + gap);
+    let y, hh;
+    if (style === 'mirror') {
+      const half = h / 2;
+      y = areaY + areaH / 2 - half;
+      hh = h;
+    } else {
+      y = areaY + areaH - h;
+      hh = h;
+    }
+    drawSpecRect(x, y, barW, hh, cover, cw, ch, color, v);
+  }
+}
+function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
+  specCtx.save();
+  if (cover) {
+    rectPath(x, y, w, h, Math.min(6, w * 0.3));
+    specCtx.clip();
+    specCtx.globalAlpha = 0.9;
+    specCtx.drawImage(cover, 0, 0);
+    specCtx.globalAlpha = 0.28;
+    specCtx.fillStyle = colorStr;
+    specCtx.fillRect(x, y, w, h);
+  } else {
+    specCtx.shadowColor = colorStr;
+    specCtx.shadowBlur = GL(14);
+    const grad = specCtx.createLinearGradient(0, y, 0, y + h);
+    grad.addColorStop(0, colorStr);
+    grad.addColorStop(1, colorStr.replace('rgb', 'rgba').replace(')', ',0.25)'));
+    specCtx.fillStyle = grad;
+    rectPath(x, y, w, h, Math.min(5, w * 0.3));
+    specCtx.fill();
+  }
+  specCtx.restore();
+}
+
+  // 콘솔 스타일 이름 → 업로드 파일 스타일 이름
+  const STYLE_ALIAS = { bars2:'bars', mirror2:'mirror', wavethin:'wave', dotsrow:'dots' };
+  function drawNewSpectrum(style, w, h, freq, time){
+    const st = STYLE_ALIAS[style] || style;
+    const pos = settings.spectrum.position;
+    const rgb = hexRgb(settings.spectrum.color1);
+    const t = performance.now()/1000;
+    specCtx.save();
+    if(st==='randomrings') drawRandomRings(t, w, h, true, freq, rgb);
+    else if(pos==='around'){
+      const baseR = Math.min(w,h) * 0.2 * SZ();
+      drawSpectrumAround(t, st, true, freq, w/2, h/2, baseR, rgb);
+    } else {
+      drawSpectrumLinear(t, st, pos==='full' ? 'bottom' : pos, true, freq, time, w, h, rgb);
+    }
+    specCtx.restore();
+  }
+
   requestAnimationFrame(drawSpectrum);
 
   /* ============================================================
@@ -2069,6 +2555,8 @@
   $('#sensRange').addEventListener('input', e=>{ settings.spectrum.sensitivity=+e.target.value; $('#sensVal').textContent=e.target.value; });
   $('#opacRange').addEventListener('input', e=>{ settings.spectrum.opacity=e.target.value/100; $('#opacVal').textContent=e.target.value+'%'; });
   $('#mirrorToggle').addEventListener('change', e=> settings.spectrum.mirror = e.target.checked);
+  $('#specSize').addEventListener('input', e=>{ settings.spectrum.size=+e.target.value; $('#specSizeVal').textContent=e.target.value+'%'; });
+  $('#specGlow').addEventListener('input', e=>{ settings.spectrum.glow=+e.target.value; $('#specGlowVal').textContent=e.target.value+'%'; });
 
   /* ============================================================
      화면 소스(크로마키) UI 바인딩
@@ -2162,6 +2650,10 @@
     $('#sensRange').value = settings.spectrum.sensitivity; $('#sensVal').textContent = settings.spectrum.sensitivity;
     $('#opacRange').value = Math.round(settings.spectrum.opacity*100); $('#opacVal').textContent = Math.round(settings.spectrum.opacity*100)+'%';
     $('#mirrorToggle').checked = settings.spectrum.mirror;
+    if(typeof settings.spectrum.size!=='number') settings.spectrum.size=100;
+    if(typeof settings.spectrum.glow!=='number') settings.spectrum.glow=100;
+    $('#specSize').value = settings.spectrum.size; $('#specSizeVal').textContent = settings.spectrum.size+'%';
+    $('#specGlow').value = settings.spectrum.glow; $('#specGlowVal').textContent = settings.spectrum.glow+'%';
 
     // 오디오
     $('#audioSourceSelect').value = settings.audio.source;
