@@ -225,6 +225,27 @@
   .settings-panel{overflow-y:auto;}
   .settings-panel .panel-head{position:sticky;top:0;background:var(--bg);z-index:2;}
   .settings-scroll{padding:6px 0 40px;}
+  .settings-scroll[hidden]{display:none;}
+  .settings-panel .panel-head{padding:8px 10px;}
+  .side-tabs{display:flex;gap:6px;width:100%;}
+  .side-tab{flex:1;padding:8px 6px;border-radius:8px;border:1px solid var(--border);background:var(--panel-raised);color:var(--muted);font-size:12.5px;font-weight:600;cursor:pointer;}
+  .side-tab.on{color:var(--text);border-color:var(--amber);background:#241a08;}
+  .tab-count{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--amber);}
+  .queue-pane{padding:10px 12px 40px;display:flex;flex-direction:column;gap:8px;}
+  .queue-pane[hidden]{display:none;}
+  .qp-top{display:flex;align-items:center;justify-content:space-between;}
+  .qp-title{font-size:13px;font-weight:700;color:var(--text);}
+  .qp-onair{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:5px;cursor:pointer;}
+  .qp-quick{display:grid;grid-template-columns:78px 1fr auto;gap:6px;}
+  .queue-pane .q-list{max-height:none;overflow:visible;}
+  .q-req{width:100%;margin-top:3px;background:transparent;border:1px dashed var(--border);border-radius:5px;color:var(--cyan);font-size:11px;padding:2px 6px;}
+  .q-req:focus{outline:none;border-color:var(--amber);background:var(--panel-solid);}
+  .queue-pane.onair .q-acts,.queue-pane.onair .q-kind,.queue-pane.onair .qp-quick,.queue-pane.onair .status-line,.queue-pane.onair #qClearBtn,.queue-pane.onair .q-lyr{display:none;}
+  .queue-pane.onair .q-item{grid-template-columns:1fr;border:none;background:transparent;border-bottom:1px solid var(--border-soft);border-radius:0;padding:9px 4px;}
+  .queue-pane.onair .q-title{font-size:15px;font-weight:600;-webkit-line-clamp:3;}
+  .queue-pane.onair .q-item.cur{background:#241a08;border-left:3px solid var(--amber);}
+  .queue-pane.onair .q-req{border:none;padding:0;font-size:12px;pointer-events:none;color:var(--cyan);}
+  .queue-pane.onair .q-req:placeholder-shown{display:none;}
 
   details.section{border-bottom:1px solid var(--border-soft);}
   details.section > summary{
@@ -520,9 +541,38 @@
     <!-- ===== 우: 설정 ===== -->
     <aside class="panel settings-panel">
       <div class="panel-head">
-        <h2>세부 설정 <span class="tag">SETTINGS</span></h2>
+        <div class="side-tabs" role="tablist">
+          <button class="side-tab on" data-tab="settings" role="tab">⚙ 설정</button>
+          <button class="side-tab" data-tab="queue" role="tab">🎵 신청곡 <span class="tab-count" id="tabQCount"></span></button>
+        </div>
       </div>
-      <div class="settings-scroll">
+
+      <!-- 신청곡 탭 (방송 중 보여줄 목록) -->
+      <div class="settings-scroll queue-pane" id="paneQueue" hidden>
+        <div class="qp-top">
+          <div class="qp-title">신청곡 리스트</div>
+          <label class="qp-onair"><input type="checkbox" id="qOnair"> 방송용 보기</label>
+        </div>
+        <div class="qp-quick">
+          <input type="text" class="text-input" id="qqReq" placeholder="신청자">
+          <input type="text" class="text-input" id="qqUrl" placeholder="곡 주소 (Suno·유튜브·mp3)">
+          <button class="btn primary" id="qqAdd">＋</button>
+        </div>
+        <div class="status-line" id="qCount">대기열 비어있음</div>
+        <div class="q-list" id="qList"></div>
+        <div class="q-edit" id="qEditBox">
+          <label class="q-edit-head" id="qEditHead">곡 정보 수정</label>
+          <input type="text" class="text-input" id="qEditTitle" placeholder="제목">
+          <textarea class="text-input" id="qEditLyrics" rows="6" placeholder="가사"></textarea>
+          <div class="btn-row">
+            <button class="btn full primary" id="qEditSave">저장</button>
+            <button class="btn full" id="qEditCancel">취소</button>
+          </div>
+        </div>
+        <button class="btn full danger ghost" id="qClearBtn">대기열 비우기</button>
+      </div>
+
+      <div class="settings-scroll" id="paneSettings">
 
         <!-- 화면 소스 -->
         <details class="section" open>
@@ -758,18 +808,7 @@
               </div>
               <div class="toggle-row"><div class="lbl">대기열 반복</div><input type="checkbox" id="qLoop" checked></div>
 
-              <div class="status-line" id="qCount">대기열 비어있음</div>
-              <div class="q-list" id="qList"></div>
-              <div class="q-edit" id="qEditBox">
-                <label class="q-edit-head" id="qEditHead">곡 정보 수정</label>
-                <input type="text" class="text-input" id="qEditTitle" placeholder="제목">
-                <textarea class="text-input" id="qEditLyrics" rows="6" placeholder="가사"></textarea>
-                <div class="btn-row">
-                  <button class="btn full primary" id="qEditSave">저장</button>
-                  <button class="btn full" id="qEditCancel">취소</button>
-                </div>
-              </div>
-              <button class="btn full danger ghost" id="qClearBtn">대기열 비우기</button>
+              <div class="hint">신청곡 목록·신청자 입력은 위쪽의 <b>🎵 신청곡</b> 탭에서 볼 수 있어요.</div>
 
               <div class="hint">
                 지원 주소: Suno 곡 링크(suno.com/song/…), 유튜브 링크, 직접 재생되는 오디오 주소(.mp3 등). 단축키 P 재생/일시정지 · S 정지 · N 다음 · D 대화 모드.<br>
@@ -1830,11 +1869,16 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
       if(isCur) bits.push(Q.state==='playing' ? '▶ 재생 중' : (Q.state==='paused' ? '⏸ 일시정지' : '⏹ 정지'));
       if(Q.nextId===it.id) bits.push('다음 곡 예약');
       if(it.failed) bits.push('⚠ '+(it.failMsg || '재생 실패'));
-      if(it.requester) bits.push('신청: '+it.requester);
       if(bits.length){
         const meta = document.createElement('div'); meta.className = 'q-meta'; meta.textContent = bits.join(' · ');
         mid.appendChild(meta);
       }
+      const rq = document.createElement('input');
+      rq.type = 'text'; rq.className = 'q-req'; rq.value = it.requester || ''; rq.placeholder = '신청자 입력';
+      rq.maxLength = 40;
+      rq.addEventListener('input', ()=>{ it.requester = rq.value.trim(); updateNowPlaying(); });
+      rq.addEventListener('keydown', ev=>{ ev.stopPropagation(); if(ev.key==='Enter') rq.blur(); });
+      mid.appendChild(rq);
       if(it.lyrics){
         const lyr = document.createElement('div');
         lyr.className = 'q-lyr'+(it.open ? ' open' : '');
@@ -1859,9 +1903,26 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
       list.appendChild(row);
     });
     const waiting = Q.items.filter(i=>!i.played && !i.failed && i.id!==Q.curId).length;
+    $('#tabQCount').textContent = Q.items.length ? '('+Q.items.length+')' : '';
     $('#qCount').textContent = Q.items.length ? `전체 ${Q.items.length}곡 · 대기 ${waiting}곡` : '대기열 비어있음';
     updateNowPlaying();
   }
+
+  document.querySelectorAll('.side-tab').forEach(b=>b.addEventListener('click',()=>{
+    const q = b.dataset.tab==='queue';
+    document.querySelectorAll('.side-tab').forEach(x=>x.classList.toggle('on', x===b));
+    $('#paneQueue').hidden = !q; $('#paneSettings').hidden = q;
+  }));
+  $('#qOnair').addEventListener('change', e=> $('#paneQueue').classList.toggle('onair', e.target.checked));
+  $('#qqAdd').addEventListener('click', ()=>{
+    const u = $('#qqUrl').value.trim(); if(!u) return;
+    $('#qUrlInput').value = u; $('#qRequester').value = $('#qqReq').value.trim();
+    $('#qAddUrlBtn').click();
+    try{ toast($('#qAddStatus').textContent.trim()); }catch(e){}
+    if(!$('#qUrlInput').value){ $('#qqUrl').value = ''; }
+  });
+  $('#qqUrl').addEventListener('keydown', ev=>{ ev.stopPropagation(); if(ev.key==='Enter') $('#qqAdd').click(); });
+  $('#qqReq').addEventListener('keydown', ev=>ev.stopPropagation());
 
   function updateNowPlaying(){
     const it = itemById(Q.curId);
