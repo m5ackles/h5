@@ -416,9 +416,14 @@
     background:var(--panel-raised);border:1px solid var(--border);color:var(--muted);
     border-radius:6px;font-size:10.5px;padding:3px 8px;
   }
-  .yt-wrap{width:100%;height:200px;background:#000;}
+  .yt-wrap{width:100%;aspect-ratio:16/9;background:#000;}
+  .yt-resize{position:absolute;right:0;bottom:0;width:22px;height:22px;cursor:nwse-resize;touch-action:none;z-index:2;
+    background:linear-gradient(135deg,transparent 0 52%,#fffc 52% 58%,transparent 58% 70%,#fffc 70% 76%,transparent 76%);
+    border-bottom-right-radius:11px;opacity:.75;}
+  .yt-resize:hover{opacity:1;}
+  .yt-dock.collapsed .yt-resize{display:none;}
   .yt-wrap iframe{width:100%;height:100%;border:0;display:block;}
-  .yt-dock.collapsed .yt-wrap{position:fixed;left:-10000px;top:0;width:300px;height:200px;}  /* 접어도 화면 밖에서 계속 재생 */
+  .yt-dock.collapsed .yt-wrap{position:fixed;left:-10000px;top:0;width:var(--ytw,300px);}  /* 접어도 화면 밖에서 계속 재생 */
   .yt-note{padding:6px 12px 8px;font-size:10.5px;line-height:1.5;color:var(--amber);}
   .yt-note:empty{display:none;}
 
@@ -891,6 +896,7 @@
 <div class="yt-dock" id="ytDock">
   <div class="yt-dock-head" title="끌어서 옮기기"><b>▶ YouTube</b><span class="hd-hint">⠿ 끌어서 이동</span><span class="hd-sp"></span><button id="ytToggleBtn" type="button">접기</button></div>
   <div class="yt-wrap" id="ytWrap"><div id="ytPlayer"></div></div>
+  <div class="yt-resize" id="ytResize" title="끌어서 크기 조절"></div>
   <div class="yt-note" id="ytNote"></div>
 </div>
 <div class="toast" id="toast" role="status"></div>
@@ -2327,6 +2333,54 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
       ytDockEl.style.right = 'auto'; ytDockEl.style.bottom = 'auto';
       ytMoved = true;
     }
+  }catch(err){}
+  /* ---------- 유튜브 플레이어 크기 조절 (오른쪽 아래 모서리를 잡고 끌기, 16:9 유지) ---------- */
+  const ytGrip = $('#ytResize');
+  const YT_MINW = 200;
+  let ytSize = null;
+  function ytSetWidth(w){
+    const left = ytDockEl.getBoundingClientRect().left;
+    const maxW = Math.max(YT_MINW, window.innerWidth - Math.max(0,left));
+    w = Math.round(Math.max(YT_MINW, Math.min(maxW, w)));
+    ytDockEl.style.width = w+'px';
+    ytDockEl.style.setProperty('--ytw', w+'px');
+    return w;
+  }
+  ytGrip.addEventListener('pointerdown', e=>{
+    if(e.button!==undefined && e.button!==0) return;
+    const r = ytDockEl.getBoundingClientRect();
+    ytDockEl.style.left = r.left+'px'; ytDockEl.style.top = r.top+'px';
+    ytDockEl.style.right = 'auto'; ytDockEl.style.bottom = 'auto';
+    ytMoved = true;
+    ytSize = { id:e.pointerId, x:e.clientX, w:r.width };
+    try{ ytGrip.setPointerCapture(e.pointerId); }catch(err){}
+    ytDockEl.classList.add('dragging');
+    e.preventDefault(); e.stopPropagation();
+  });
+  ytGrip.addEventListener('pointermove', e=>{
+    if(!ytSize || e.pointerId!==ytSize.id) return;
+    ytSetWidth(ytSize.w + (e.clientX - ytSize.x));
+    ytClamp();
+  });
+  function ytSizeEnd(e){
+    if(!ytSize || e.pointerId!==ytSize.id) return;
+    ytSize = null;
+    ytDockEl.classList.remove('dragging');
+    try{
+      localStorage.setItem('ytDockW', String(parseFloat(ytDockEl.style.width)));
+      localStorage.setItem('ytDockPos', JSON.stringify({ x:parseFloat(ytDockEl.style.left), y:parseFloat(ytDockEl.style.top) }));
+    }catch(err){}
+  }
+  ytGrip.addEventListener('pointerup', ytSizeEnd);
+  ytGrip.addEventListener('pointercancel', ytSizeEnd);
+  ytGrip.addEventListener('dblclick', ()=>{      // 더블클릭하면 기본 크기로
+    ytDockEl.style.width = ''; ytDockEl.style.removeProperty('--ytw');
+    try{ localStorage.removeItem('ytDockW'); }catch(err){}
+    ytClamp();
+  });
+  try{
+    const sw = parseFloat(localStorage.getItem('ytDockW'));
+    if(sw>=YT_MINW) ytSetWidth(sw);
   }catch(err){}
   if(window.ResizeObserver) new ResizeObserver(ytClamp).observe(ytDockEl);
   window.addEventListener('resize', ytClamp);
