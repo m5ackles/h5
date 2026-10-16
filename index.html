@@ -235,6 +235,9 @@
   .queue-pane[hidden]{display:none;}
   .qp-top{display:flex;align-items:center;justify-content:space-between;}
   .qp-title{font-size:13px;font-weight:700;color:var(--text);}
+  .qp-right{display:flex;align-items:center;gap:10px;}
+  .qp-clear{padding:4px 8px;font-size:11px;}
+  .queue-pane.onair .qp-clear{display:none;}
   .qp-onair{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:5px;cursor:pointer;}
   .qp-quick{display:grid;grid-template-columns:78px 1fr auto;gap:6px;}
   .queue-pane .q-list{max-height:none;overflow:visible;}
@@ -556,7 +559,7 @@
       <div class="settings-scroll queue-pane" id="paneQueue" hidden>
         <div class="qp-top">
           <div class="qp-title">신청곡 리스트</div>
-          <label class="qp-onair"><input type="checkbox" id="qOnair"> 방송용 보기</label>
+          <div class="qp-right"><button class="btn qp-clear" id="qClearReq" title="모든 곡의 신청자 이름을 한 번에 지웁니다">신청자 모두 지우기</button><label class="qp-onair"><input type="checkbox" id="qOnair"> 방송용 보기</label></div>
         </div>
         <div class="qp-quick">
           <input type="text" class="text-input" id="qqReq" placeholder="신청자">
@@ -1919,6 +1922,14 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
     document.querySelectorAll('.side-tab').forEach(x=>x.classList.toggle('on', x===b));
     $('#paneQueue').hidden = !q; $('#paneSettings').hidden = q;
   }));
+  $('#qClearReq').addEventListener('click', ()=>{
+    const n = Q.items.filter(i=>i.requester).length;
+    if(!n){ toast('지울 신청자 이름이 없어요'); return; }
+    if(!confirm(`${n}곡의 신청자 이름을 모두 지울까요? (곡은 그대로 남아요)`)) return;
+    Q.items.forEach(i=>{ i.requester = ''; });
+    renderQueue();
+    toast('신청자 이름을 모두 지웠어요');
+  });
   $('#qOnair').addEventListener('change', e=> $('#paneQueue').classList.toggle('onair', e.target.checked));
   $('#qqAdd').addEventListener('click', ()=>{
     const u = $('#qqUrl').value.trim(); if(!u) return;
