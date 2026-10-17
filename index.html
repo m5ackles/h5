@@ -165,8 +165,8 @@
   .media-layer img, .media-layer video{width:100%;height:100%;object-fit:contain;object-position:center;background:#000;display:block;}
   .stage-frame.reduced-motion .media-layer{transition:opacity .5s linear;}
 
-  #chromaCanvas, #spectrumCanvas{position:absolute;inset:0;width:100%;height:100%;z-index:3;pointer-events:none;}
-  #chromaCanvas{z-index:2;}
+  #chromaCanvas, #spectrumCanvas{position:absolute;inset:0;width:100%;height:100%;z-index:4;pointer-events:none;}
+  #chromaCanvas{z-index:3;}
 
   .stage-empty{
     position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -420,6 +420,12 @@
     border-radius:6px;font-size:10.5px;padding:3px 8px;
   }
   .yt-wrap{width:100%;aspect-ratio:16/9;background:#000;position:relative;}
+  /* 메인 화면(무대) 모드: 도크를 무대 영역에 맞춰 덮음. 크로마·스펙트럼보다는 아래 */
+  .yt-dock.stage-mode{z-index:2;border:none;border-radius:0;box-shadow:none;background:#000;display:none;}
+  .yt-dock.stage-mode.show{display:block;}
+  .yt-dock.stage-mode .yt-dock-head,.yt-dock.stage-mode .yt-resize{display:none;}
+  .yt-dock.stage-mode .yt-wrap,.yt-dock.stage-mode.collapsed .yt-wrap{position:absolute;inset:0;left:0;top:0;width:100%;height:100%;aspect-ratio:auto;}
+  .yt-dock.stage-mode .yt-note{position:absolute;left:10px;right:10px;bottom:10px;z-index:3;background:#000c;border-radius:8px;}
   #ytSpecCanvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1;}
   .yt-dock-head .hd-spec{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:4px;cursor:pointer;margin-right:6px;white-space:nowrap;}
   .yt-dock-head .hd-spec input{margin:0;cursor:pointer;}
@@ -481,6 +487,7 @@
       <button class="mt-btn" id="mtPlay" title="재생 / 일시정지 (P)">▶</button>
       <button class="mt-btn" id="mtStop" title="정지 (S)">⏹</button>
       <button class="mt-btn" id="mtNext" title="다음 곡 (N)">⏭</button>
+      <button class="mt-btn" id="mtYt" title="유튜브 영상: 팝업 ↔ 메인 화면 (V)">📺</button>
       <button class="mt-btn" id="mtDuck" title="대화 모드: 볼륨 낮추기 (D)">🎙</button>
       <div class="mt-title" id="mtTitle">재생 대기</div>
     </div>
@@ -839,6 +846,14 @@
             </div>
 
             <div class="field">
+              <label>유튜브 영상 표시 위치</label>
+              <select id="ytModeSelect">
+                <option value="popup">작은 팝업 창</option>
+                <option value="stage">메인 화면 (슬라이드 자리에 표시)</option>
+              </select>
+              <div class="hint">유튜브 신청곡이 재생될 때만 적용돼요. 메인 화면에서는 스펙트럼·웹캠(크로마키)·방송준비중 이미지가 영상 위에 겹쳐져요. 단축키 V</div>
+            </div>
+            <div class="field">
               <label>재생 음량 <span class="val" id="volVal">90%</span></label>
               <input type="range" id="volRange" min="0" max="100" value="90">
             </div>
@@ -929,6 +944,7 @@
       transitions:{ mode:'random', fixed:'fade', pool:[...EFFECTS], duration:0.9 },
       spectrum:{ enabled:true, style:'bars', position:'bottom', color1:'#F2B84B', color2:'#FF3E7F', sensitivity:1.2, opacity:0.9, mirror:true, size:100, glow:100 },
       ytSpectrum:false,
+      ytMode:'popup',
       audio:{ source:'file', volume:0.9 },
       screen:{ mode:'folder', keyColor:'#00ff66', similarity:38, smoothness:12, composite:false },
       standby:{ enabled:false, image:null },
@@ -1208,7 +1224,7 @@
     const w = specCanvas.width, h = specCanvas.height;
     mainSpecCtx.clearRect(0,0,w,h);
     const dockEl = $('#ytDock');
-    const ovOn = !!settings.ytSpectrum && dockEl.classList.contains('show') && !dockEl.classList.contains('collapsed');
+    const ovOn = !!settings.ytSpectrum && !dockEl.classList.contains('stage-mode') && dockEl.classList.contains('show') && !dockEl.classList.contains('collapsed');
     const ow = ytSpecCanvas.clientWidth, oh = ytSpecCanvas.clientHeight;
     if(ytSpecCanvas.width!==ow || ytSpecCanvas.height!==oh){ ytSpecCanvas.width = ow; ytSpecCanvas.height = oh; }
     ytSpecCtx.clearRect(0,0,ytSpecCanvas.width,ytSpecCanvas.height);
@@ -2328,6 +2344,7 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
   let ytDrag = null;
 
   function ytClamp(){       // 화면 크기가 바뀌거나 접기/펼치기로 크기가 달라져도 화면 안에 유지
+    if(ytDockEl.classList.contains('stage-mode')) return;
     if(!ytMoved || !ytDockEl.classList.contains('show')) return;
     const r = ytDockEl.getBoundingClientRect();
     ytDockEl.style.left = Math.max(0, Math.min(window.innerWidth - r.width, r.left))+'px';
@@ -2414,6 +2431,40 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
     const sw = parseFloat(localStorage.getItem('ytDockW'));
     if(sw>=YT_MINW) ytSetWidth(sw);
   }catch(err){}
+  /* ---------- 유튜브 영상을 메인 화면(무대)에 표시 ---------- */
+  let ytPopupStash = null;                      // 무대 모드로 가기 전 팝업의 위치·크기
+  function ytFitStage(){
+    if(!ytDockEl.classList.contains('stage-mode')) return;
+    const r = $('#stageFrame').getBoundingClientRect();
+    ytDockEl.style.left = r.left+'px'; ytDockEl.style.top = r.top+'px';
+    ytDockEl.style.width = r.width+'px'; ytDockEl.style.height = r.height+'px';
+  }
+  function ytApplyMode(){
+    const stage = settings.ytMode==='stage';
+    const isStage = ytDockEl.classList.contains('stage-mode');
+    $('#ytModeSelect').value = stage ? 'stage' : 'popup';
+    $('#mtYt').classList.toggle('on', stage);
+    if(stage && !isStage){
+      ytPopupStash = { left:ytDockEl.style.left, top:ytDockEl.style.top, right:ytDockEl.style.right, bottom:ytDockEl.style.bottom,
+                       width:ytDockEl.style.width, height:ytDockEl.style.height, collapsed:ytDockEl.classList.contains('collapsed') };
+      ytDockEl.classList.remove('collapsed'); $('#ytToggleBtn').textContent = '접기';
+      ytDockEl.classList.add('stage-mode');
+      ytFitStage();
+    } else if(!stage && isStage){
+      ytDockEl.classList.remove('stage-mode');
+      const s = ytPopupStash || {};
+      ['left','top','right','bottom','width','height'].forEach(k=>{ ytDockEl.style[k] = s[k] || ''; });
+      ytPopupStash = null;
+      ytClamp();
+    }
+  }
+  function ytSetMode(m){ settings.ytMode = m; ytApplyMode(); }
+  $('#ytModeSelect').addEventListener('change', e=> ytSetMode(e.target.value));
+  $('#mtYt').addEventListener('click', ()=> ytSetMode(settings.ytMode==='stage' ? 'popup' : 'stage'));
+  window.ytApplyMode = ytApplyMode;
+  window.addEventListener('scroll', ytFitStage, { passive:true });
+  window.addEventListener('resize', ytFitStage);
+  if(window.ResizeObserver) new ResizeObserver(ytFitStage).observe($('#stageFrame'));
   if(window.ResizeObserver) new ResizeObserver(ytClamp).observe(ytDockEl);
   window.addEventListener('resize', ytClamp);
 
@@ -2632,6 +2683,7 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
     else if(k==='s') qStop();
     else if(k==='n') qNext();
     else if(k==='d') qToggleDuck();
+    else if(k==='v') $('#mtYt').click();
   });
 
   /* ============================================================
@@ -2801,6 +2853,8 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
     if(typeof settings.spectrum.size!=='number') settings.spectrum.size=100;
     if(typeof settings.spectrum.glow!=='number') settings.spectrum.glow=100;
     settings.ytSpectrum = !!settings.ytSpectrum;
+    if(settings.ytMode!=='stage') settings.ytMode = 'popup';
+    if(window.ytApplyMode) window.ytApplyMode();
     $('#ytSpecToggle').checked = settings.ytSpectrum;
     $('#specSize').value = settings.spectrum.size; $('#specSizeVal').textContent = settings.spectrum.size+'%';
     $('#specGlow').value = settings.spectrum.glow; $('#specGlowVal').textContent = settings.spectrum.glow+'%';
