@@ -419,7 +419,10 @@
     background:var(--panel-raised);border:1px solid var(--border);color:var(--muted);
     border-radius:6px;font-size:10.5px;padding:3px 8px;
   }
-  .yt-wrap{width:100%;aspect-ratio:16/9;background:#000;}
+  .yt-wrap{width:100%;aspect-ratio:16/9;background:#000;position:relative;}
+  #ytSpecCanvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1;}
+  .yt-dock-head .hd-spec{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:4px;cursor:pointer;margin-right:6px;white-space:nowrap;}
+  .yt-dock-head .hd-spec input{margin:0;cursor:pointer;}
   .yt-resize{position:absolute;right:0;bottom:0;width:22px;height:22px;cursor:nwse-resize;touch-action:none;z-index:2;
     background:linear-gradient(135deg,transparent 0 52%,#fffc 52% 58%,transparent 58% 70%,#fffc 70% 76%,transparent 76%);
     border-bottom-right-radius:11px;opacity:.75;}
@@ -897,8 +900,8 @@
 </div>
 
 <div class="yt-dock" id="ytDock">
-  <div class="yt-dock-head" title="끌어서 옮기기"><b>▶ YouTube</b><span class="hd-hint">⠿ 끌어서 이동</span><span class="hd-sp"></span><button id="ytToggleBtn" type="button">접기</button></div>
-  <div class="yt-wrap" id="ytWrap"><div id="ytPlayer"></div></div>
+  <div class="yt-dock-head" title="끌어서 옮기기"><b>▶ YouTube</b><span class="hd-hint">⠿ 끌어서 이동</span><span class="hd-sp"></span><label class="hd-spec" title="영상 위에 스펙트럼 표시"><input type="checkbox" id="ytSpecToggle">스펙트럼</label><button id="ytToggleBtn" type="button">접기</button></div>
+  <div class="yt-wrap" id="ytWrap"><div id="ytPlayer"></div><canvas id="ytSpecCanvas"></canvas></div>
   <div class="yt-resize" id="ytResize" title="끌어서 크기 조절"></div>
   <div class="yt-note" id="ytNote"></div>
 </div>
@@ -925,6 +928,7 @@
       playback:{ duration:6, order:'sequential', loop:true, videoMode:'natural', sync:true, videoSound:false },
       transitions:{ mode:'random', fixed:'fade', pool:[...EFFECTS], duration:0.9 },
       spectrum:{ enabled:true, style:'bars', position:'bottom', color1:'#F2B84B', color2:'#FF3E7F', sensitivity:1.2, opacity:0.9, mirror:true, size:100, glow:100 },
+      ytSpectrum:false,
       audio:{ source:'file', volume:0.9 },
       screen:{ mode:'folder', keyColor:'#00ff66', similarity:38, smoothness:12, composite:false },
       standby:{ enabled:false, image:null },
@@ -1136,7 +1140,10 @@
      스펙트럼 (Web Audio + Canvas)
   ============================================================ */
   const specCanvas = $('#spectrumCanvas');
-  const specCtx = specCanvas.getContext('2d');
+  let specCtx = specCanvas.getContext('2d');          // 유튜브 팝업 위에 그릴 때 잠시 바꿔 끼움
+  const mainSpecCtx = specCtx;
+  const ytSpecCanvas = $('#ytSpecCanvas');
+  const ytSpecCtx = ytSpecCanvas.getContext('2d');
   function resizeCanvases(){
     const r = $('#stageFrame').getBoundingClientRect();
     [specCanvas, $('#chromaCanvas')].forEach(c=>{
@@ -1168,21 +1175,7 @@
   }
 
   let freqData=null, timeData=null;
-  function drawSpectrum(){
-    requestAnimationFrame(drawSpectrum);
-    const w = specCanvas.width, h = specCanvas.height;
-    specCtx.clearRect(0,0,w,h);
-    const useSim = Q.simulated;
-    if(!settings.spectrum.enabled || (!audioState.analyser && !useSim)) return;
-
-    const bins = useSim ? 512 : audioState.analyser.frequencyBinCount;
-    if(!freqData || freqData.length!==bins){ freqData=new Uint8Array(bins); timeData=new Uint8Array(bins); }
-    if(useSim){ fillSimulated(freqData, timeData); }
-    else {
-      audioState.analyser.getByteFrequencyData(freqData);
-      audioState.analyser.getByteTimeDomainData(timeData);
-    }
-
+  function paintSpectrum(w, h){
     specCtx.save();
     specCtx.globalAlpha = settings.spectrum.opacity;
     const grad = specCtx.createLinearGradient(0,0,w,0);
@@ -1197,18 +1190,46 @@
 
     if(NEW_STYLES.includes(settings.spectrum.style)){
       drawNewSpectrum(settings.spectrum.style, w, h, freqData, timeData);
-      specCtx.restore();
-      return;
-    }
-    switch(settings.spectrum.style){
-      case 'bars': drawBars(freqData, bandY, bandH, w, sens, settings.spectrum.mirror); break;
-      case 'mirrorBars': drawBars(freqData, bandY, bandH, w, sens, true); break;
-      case 'wave': drawWave(timeData, full?0:bandY, full?h:bandH, w); break;
-      case 'circular': drawCircular(freqData, w, h, sens); break;
-      case 'particles': drawParticles(freqData, w, h, sens); break;
-      case 'dots': drawDots(freqData, w, h, sens); break;
+    } else {
+      switch(settings.spectrum.style){
+        case 'bars': drawBars(freqData, bandY, bandH, w, sens, settings.spectrum.mirror); break;
+        case 'mirrorBars': drawBars(freqData, bandY, bandH, w, sens, true); break;
+        case 'wave': drawWave(timeData, full?0:bandY, full?h:bandH, w); break;
+        case 'circular': drawCircular(freqData, w, h, sens); break;
+        case 'particles': drawParticles(freqData, w, h, sens); break;
+        case 'dots': drawDots(freqData, w, h, sens); break;
+      }
     }
     specCtx.restore();
+  }
+
+  function drawSpectrum(){
+    requestAnimationFrame(drawSpectrum);
+    const w = specCanvas.width, h = specCanvas.height;
+    mainSpecCtx.clearRect(0,0,w,h);
+    const dockEl = $('#ytDock');
+    const ovOn = !!settings.ytSpectrum && dockEl.classList.contains('show') && !dockEl.classList.contains('collapsed');
+    const ow = ytSpecCanvas.clientWidth, oh = ytSpecCanvas.clientHeight;
+    if(ytSpecCanvas.width!==ow || ytSpecCanvas.height!==oh){ ytSpecCanvas.width = ow; ytSpecCanvas.height = oh; }
+    ytSpecCtx.clearRect(0,0,ytSpecCanvas.width,ytSpecCanvas.height);
+    const useSim = Q.simulated;
+    if(!audioState.analyser && !useSim) return;
+    if(!settings.spectrum.enabled && !ovOn) return;
+
+    const bins = useSim ? 512 : audioState.analyser.frequencyBinCount;
+    if(!freqData || freqData.length!==bins){ freqData=new Uint8Array(bins); timeData=new Uint8Array(bins); }
+    if(useSim){ fillSimulated(freqData, timeData); }
+    else {
+      audioState.analyser.getByteFrequencyData(freqData);
+      audioState.analyser.getByteTimeDomainData(timeData);
+    }
+
+    if(settings.spectrum.enabled) paintSpectrum(w, h);
+    if(ovOn && ytSpecCanvas.width>0 && ytSpecCanvas.height>0){
+      specCtx = ytSpecCtx;
+      try{ paintSpectrum(ytSpecCanvas.width, ytSpecCanvas.height); }
+      finally{ specCtx = mainSpecCtx; }
+    }
   }
 
   function drawBars(data, bandY, bandH, w, sens, mirror){
@@ -2313,7 +2334,7 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
     ytDockEl.style.top = Math.max(0, Math.min(window.innerHeight - r.height, r.top))+'px';
   }
   ytHead.addEventListener('pointerdown', e=>{
-    if(e.target.closest('button')) return;           // 접기 버튼은 드래그 대상이 아님
+    if(e.target.closest('button, label, input')) return;   // 접기 버튼·스펙트럼 체크박스는 드래그 대상이 아님
     const r = ytDockEl.getBoundingClientRect();
     ytDrag = { id:e.pointerId, dx:e.clientX - r.left, dy:e.clientY - r.top };
     ytDockEl.style.left = r.left+'px'; ytDockEl.style.top = r.top+'px';
@@ -2681,6 +2702,7 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
   $('#sensRange').addEventListener('input', e=>{ settings.spectrum.sensitivity=+e.target.value; $('#sensVal').textContent=e.target.value; });
   $('#opacRange').addEventListener('input', e=>{ settings.spectrum.opacity=e.target.value/100; $('#opacVal').textContent=e.target.value+'%'; });
   $('#mirrorToggle').addEventListener('change', e=> settings.spectrum.mirror = e.target.checked);
+  $('#ytSpecToggle').addEventListener('change', e=>{ settings.ytSpectrum = e.target.checked; });
   $('#specSize').addEventListener('input', e=>{ settings.spectrum.size=+e.target.value; $('#specSizeVal').textContent=e.target.value+'%'; });
   $('#specGlow').addEventListener('input', e=>{ settings.spectrum.glow=+e.target.value; $('#specGlowVal').textContent=e.target.value+'%'; });
 
@@ -2778,6 +2800,8 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
     $('#mirrorToggle').checked = settings.spectrum.mirror;
     if(typeof settings.spectrum.size!=='number') settings.spectrum.size=100;
     if(typeof settings.spectrum.glow!=='number') settings.spectrum.glow=100;
+    settings.ytSpectrum = !!settings.ytSpectrum;
+    $('#ytSpecToggle').checked = settings.ytSpectrum;
     $('#specSize').value = settings.spectrum.size; $('#specSizeVal').textContent = settings.spectrum.size+'%';
     $('#specGlow').value = settings.spectrum.glow; $('#specGlowVal').textContent = settings.spectrum.glow+'%';
 
