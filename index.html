@@ -2066,9 +2066,22 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
     if(Q.curId!==null && isFinite(curPos)) elapsed += Math.max(0, curPos);
     const el = $('#qTotal');
     if(!Q.items.length){ el.textContent = ''; return; }
+    // 남은 시간 = 지금 곡의 남은 부분 + 앞으로 재생될 곡 전부 (어느 곡으로 건너뛰든 현재 위치 기준)
+    //  · 순서대로: 목록에서 지금 곡 뒤에 있는 곡들 / 랜덤: 아직 안 들은 곡들
+    let remain = total;
+    const ci = Q.items.findIndex(i=>i.id===Q.curId);
+    if(ci>=0){
+      const cur = Q.items[ci];
+      remain = 0;
+      if(cur.dur>0) remain += Math.max(0, cur.dur - (isFinite(curPos) ? Math.max(0,curPos) : 0));
+      Q.items.forEach((i,idx)=>{
+        if(i.failed || i.id===cur.id || !(i.dur>0)) return;
+        if(Q.mode==='random' ? !i.played : idx>ci) remain += i.dur;
+      });
+    }
     const plus = unknown ? '+' : '';
     el.innerHTML = '<span>경과 <b>'+fmtLong(elapsed)+'</b></span>'
-      + '<span>남은 <b>'+fmtLong(Math.max(0, total-elapsed))+plus+'</b></span>'
+      + '<span>남은 <b>'+fmtLong(remain)+plus+'</b></span>'
       + '<span>총 <b>'+fmtLong(total)+plus+'</b></span>'
       + (unknown ? '<span class="qp-unk">미확인 '+unknown+'곡</span>' : '');
   }
