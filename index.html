@@ -237,6 +237,9 @@
   .qp-title{font-size:13px;font-weight:700;color:var(--text);}
   .qp-total{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--amber);}
   .qp-total:empty{display:none;}
+  .qp-total{display:flex;flex-wrap:wrap;gap:4px 12px;}
+  .qp-total b{color:var(--text);font-weight:600;}
+  .qp-total .qp-unk{color:var(--muted);font-size:10.5px;}
   .qp-right{display:flex;align-items:center;gap:10px;}
   .qp-clear{padding:4px 8px;font-size:11px;}
   .queue-pane.onair .qp-clear{display:none;}
@@ -573,7 +576,7 @@
           <div class="qp-title">신청곡 리스트</div>
           <div class="qp-right"><button class="btn qp-clear" id="qClearReq" title="모든 곡의 신청자 이름을 한 번에 지웁니다">신청자 모두 지우기</button><label class="qp-onair"><input type="checkbox" id="qOnair"> 방송용 보기</label></div>
         </div>
-        <div class="qp-total" id="qTotal" title="진행 시간 / 대기열 전체 시간"></div>
+        <div class="qp-total" id="qTotal" title="경과 · 남은 · 총 시간 (대기열 전체)"></div>
         <div class="qp-quick">
           <input type="text" class="text-input" id="qqReq" placeholder="신청자">
           <input type="text" class="text-input" id="qqUrl" placeholder="곡 주소 (Suno·유튜브·mp3)">
@@ -2063,8 +2066,11 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
     if(Q.curId!==null && isFinite(curPos)) elapsed += Math.max(0, curPos);
     const el = $('#qTotal');
     if(!Q.items.length){ el.textContent = ''; return; }
-    el.textContent = '⏱ '+fmtLong(elapsed)+' / '+fmtLong(total)+(unknown ? '+' : '')
-      + (unknown ? '  (시간 확인 중·미확인 '+unknown+'곡)' : '');
+    const plus = unknown ? '+' : '';
+    el.innerHTML = '<span>경과 <b>'+fmtLong(elapsed)+'</b></span>'
+      + '<span>남은 <b>'+fmtLong(Math.max(0, total-elapsed))+plus+'</b></span>'
+      + '<span>총 <b>'+fmtLong(total)+plus+'</b></span>'
+      + (unknown ? '<span class="qp-unk">미확인 '+unknown+'곡</span>' : '');
   }
 
   function updateNowPlaying(){
