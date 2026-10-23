@@ -212,6 +212,8 @@
   .stage-only .topbar{padding:6px 12px;gap:10px;}
   .stage-only .topbar .brand .sub{display:none;}
   .stage-only .topbar .clock{display:none;}
+  .bc-timer{cursor:pointer;color:var(--amber);user-select:none;}
+  .bc-timer.idle{color:var(--muted);}
 
   .stage-exit-btn{
     position:absolute;top:12px;right:12px;z-index:9;
@@ -497,6 +499,7 @@
       <div class="mt-title" id="mtTitle">재생 대기</div>
     </div>
     <div class="topbar-spacer"></div>
+    <div class="clock bc-timer" id="bcTimer" title="총 방송 경과시간 · 클릭하면 시작/초기화">방송 0:00:00</div>
     <div class="clock" id="clock">--:--:--</div>
     <div class="standby-toggle-top">
       방송준비중
@@ -2056,31 +2059,48 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
   $('#qqUrl').addEventListener('keydown', ev=>{ ev.stopPropagation(); if(ev.key==='Enter') $('#qqAdd').click(); });
   $('#qqReq').addEventListener('keydown', ev=>ev.stopPropagation());
 
+  // 대기열 시간: 번호 순서(1번부터) 기준으로만 계산
+  //  진행 = 지금 곡 앞 곡들의 길이 합 + 지금 곡 재생 위치 / 남은 = 총 − 진행 / 총 = 목록 전체 합
+  /* ---------- 총 방송 경과시간 (상단바) ---------- */
+  let bcStartTs = 0;
+  try{ bcStartTs = parseInt(localStorage.getItem('bcStart')) || 0; }catch(e){}
+  function bcStart(){
+    if(bcStartTs) return;
+    bcStartTs = Date.now();
+    try{ localStorage.setItem('bcStart', String(bcStartTs)); }catch(e){}
+    bcRender();
+  }
+  function bcRender(){
+    const el = $('#bcTimer');
+    el.classList.toggle('idle', !bcStartTs);
+    el.textContent = '방송 '+(bcStartTs ? bcFmtLong((Date.now()-bcStartTs)/1000) : '0:00:00');
+  }
+  function bcFmtLong(s){ const x=Math.floor(s), hh=Math.floor(x/3600); return hh+':'+String(Math.floor(x%3600/60)).padStart(2,'0')+':'+String(x%60).padStart(2,'0'); }
+  $('#bcTimer').addEventListener('click', ()=>{
+    if(!bcStartTs){ bcStart(); return; }
+    if(!confirm('총 방송 경과시간을 0으로 초기화할까요?')) return;
+    bcStartTs = 0;
+    try{ localStorage.removeItem('bcStart'); }catch(e){}
+    bcRender();
+  });
+  setInterval(bcRender, 1000);
+  bcRender();
+
   function updateQTotal(curPos){
-    let total = 0, elapsed = 0, unknown = 0;
-    Q.items.forEach(i=>{
+    let total = 0, before = 0, unknown = 0;
+    const ci = Q.items.findIndex(i=>i.id===Q.curId);
+    Q.items.forEach((i, idx)=>{
       if(i.failed) return;
-      if(i.dur>0) total += i.dur; else unknown++;
-      if(i.id!==Q.curId && i.played && i.dur>0) elapsed += i.dur;
+      if(i.dur>0){ total += i.dur; if(ci>=0 && idx<ci) before += i.dur; }
+      else unknown++;
     });
-    if(Q.curId!==null && isFinite(curPos)) elapsed += Math.max(0, curPos);
     const el = $('#qTotal');
     if(!Q.items.length){ el.textContent = ''; return; }
-    // 남은 시간 = 지금 곡의 남은 부분 + 앞으로 재생될 곡 전부 (어느 곡으로 건너뛰든 현재 위치 기준)
-    //  · 순서대로: 목록에서 지금 곡 뒤에 있는 곡들 / 랜덤: 아직 안 들은 곡들
-    let remain = total;
-    const ci = Q.items.findIndex(i=>i.id===Q.curId);
-    if(ci>=0){
-      const cur = Q.items[ci];
-      remain = 0;
-      if(cur.dur>0) remain += Math.max(0, cur.dur - (isFinite(curPos) ? Math.max(0,curPos) : 0));
-      Q.items.forEach((i,idx)=>{
-        if(i.failed || i.id===cur.id || !(i.dur>0)) return;
-        if(Q.mode==='random' ? !i.played : idx>ci) remain += i.dur;
-      });
-    }
+    const pos = (ci>=0 && isFinite(curPos)) ? Math.max(0, curPos) : 0;
+    const progress = ci>=0 ? before + pos : 0;
+    const remain = Math.max(0, total - progress);
     const plus = unknown ? '+' : '';
-    el.innerHTML = '<span>경과 <b>'+fmtLong(elapsed)+'</b></span>'
+    el.innerHTML = '<span>진행 <b>'+fmtLong(progress)+'</b></span>'
       + '<span>남은 <b>'+fmtLong(remain)+plus+'</b></span>'
       + '<span>총 <b>'+fmtLong(total)+plus+'</b></span>'
       + (unknown ? '<span class="qp-unk">미확인 '+unknown+'곡</span>' : '');
@@ -2342,6 +2362,7 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
 
   function qPlayItem(item){
     Q.token++; const tk = Q.token;
+    bcStart();
     stopBackends();
     releaseStreamSource();
     Q.curId = item.id; item.played = true; item.failed = false;
