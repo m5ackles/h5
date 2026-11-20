@@ -23,25 +23,71 @@
     --magenta:#FF3E7F;
     --cyan:#34E2C6;
     --danger:#FF5D5D;
+    --bg-g1:#171B33; --bg-g2:#1B1430; --bg2:#0D1120;
+    --amber-bg:#241a08; --on-amber:#1a1305; --amber-bg2:#3A2A12;
+    --line-strong:#3A4278; --track:#20263F; --scroll:#2A3155;
+    --live-bg:#1E1608; --live-bd:#4A3A16;
     --radius-lg:14px;
     --radius-md:10px;
     --radius-sm:6px;
   }
+  [data-theme="neon"]{
+    --bg:#0D0715; --panel:#150C2399; --panel-solid:#190E2B; --panel-raised:#20123A;
+    --border:#3A2266; --border-soft:#2A1749; --text:#F1E9FF; --muted:#A592C9; --muted-dim:#6E5C99;
+    --amber:#C77DFF; --amber-dim:#7B4FA8; --magenta:#FF4FD8; --cyan:#4DE8FF;
+    --bg-g1:#2A1252; --bg-g2:#3A0F45; --bg2:#120A20;
+    --amber-bg:#241038; --on-amber:#14061F; --amber-bg2:#3A1D5E;
+    --line-strong:#6B45B0; --track:#2E1A52; --scroll:#3E2570;
+    --live-bg:#2A1445; --live-bd:#6B3FA0;
+  }
+  [data-theme="forest"]{
+    --bg:#07110E; --panel:#0C1C1699; --panel-solid:#0E1D17; --panel-raised:#13271F;
+    --border:#1F4033; --border-soft:#162E25; --text:#E6F5EC; --muted:#86A899; --muted-dim:#557566;
+    --amber:#7BE0A4; --amber-dim:#3F8A62; --magenta:#F2C14E; --cyan:#5DD6D0;
+    --bg-g1:#0F2E22; --bg-g2:#1A2A12; --bg2:#0A1712;
+    --amber-bg:#0F2A1D; --on-amber:#04140B; --amber-bg2:#1B4430;
+    --line-strong:#2F7556; --track:#183428; --scroll:#245240;
+    --live-bg:#0E2418; --live-bd:#2F6B4C;
+  }
+  [data-theme="sunset"]{
+    --bg:#14080C; --panel:#22101699; --panel-solid:#24111A; --panel-raised:#2E1722;
+    --border:#552837; --border-soft:#3D1D29; --text:#FFEFE8; --muted:#C99A9E; --muted-dim:#8C6468;
+    --amber:#FF9A5C; --amber-dim:#A85A30; --magenta:#FF5C8A; --cyan:#FFD166;
+    --bg-g1:#3D1424; --bg-g2:#3A1E10; --bg2:#1B0B10;
+    --amber-bg:#34170E; --on-amber:#240A04; --amber-bg2:#55261A;
+    --line-strong:#9A4A52; --track:#3B1C26; --scroll:#6A2E3C;
+    --live-bg:#35160F; --live-bd:#8A4026;
+  }
+  [data-theme="ocean"]{
+    --bg:#06111C; --panel:#0A1B2B99; --panel-solid:#0C1E30; --panel-raised:#102739;
+    --border:#1D4A6B; --border-soft:#153650; --text:#E6F4FF; --muted:#86A9C4; --muted-dim:#557893;
+    --amber:#4FC3F7; --amber-dim:#2A7AA8; --magenta:#FF7B9C; --cyan:#5EEAD4;
+    --bg-g1:#0C2B47; --bg-g2:#0A2338; --bg2:#08162A;
+    --amber-bg:#0A2438; --on-amber:#04121E; --amber-bg2:#12405F;
+    --line-strong:#2E78A8; --track:#163249; --scroll:#235A80;
+    --live-bg:#0A2236; --live-bd:#2A6B96;
+  }
+  .theme-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px;}
+  .theme-card{display:flex;flex-direction:column;gap:6px;padding:8px;border-radius:var(--radius-md);
+    background:var(--panel-raised);border:1px solid var(--border);color:var(--text);font-size:12px;text-align:left;}
+  .theme-card:hover{border-color:var(--line-strong);}
+  .theme-card.on{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber) inset;}
+  .theme-sw{height:30px;border-radius:6px;border:1px solid #ffffff22;}
   *{box-sizing:border-box;}
   html,body{height:100%;margin:0;}
   body{
     background:
-      radial-gradient(1200px 600px at 12% -10%, #171B33 0%, transparent 60%),
-      radial-gradient(1000px 700px at 110% 10%, #1B1430 0%, transparent 55%),
+      radial-gradient(1200px 600px at 12% -10%, var(--bg-g1) 0%, transparent 60%),
+      radial-gradient(1000px 700px at 110% 10%, var(--bg-g2) 0%, transparent 55%),
       var(--bg);
     color:var(--text);
     font-family:'Inter',system-ui,sans-serif;
   }
-  ::selection{background:var(--amber);color:#1a1305;}
+  ::selection{background:var(--amber);color:var(--on-amber);}
   ::-webkit-scrollbar{width:9px;height:9px;}
   ::-webkit-scrollbar-track{background:transparent;}
-  ::-webkit-scrollbar-thumb{background:#2A3155;border-radius:10px;}
-  ::-webkit-scrollbar-thumb:hover{background:#3A4278;}
+  ::-webkit-scrollbar-thumb{background:var(--scroll);border-radius:10px;}
+  ::-webkit-scrollbar-thumb:hover{background:var(--line-strong);}
 
   button{font-family:inherit;cursor:pointer;}
   input,select,textarea{font-family:inherit;}
@@ -54,7 +100,7 @@
     display:flex;align-items:center;gap:16px;flex-wrap:wrap;
     padding:10px 18px;
     border-bottom:1px solid var(--border-soft);
-    background:linear-gradient(180deg,#0D1120,#0A0D16);
+    background:linear-gradient(180deg,var(--bg2),var(--bg));
     flex:0 0 auto;
   }
   .brand{display:flex;align-items:baseline;gap:8px;}
@@ -73,7 +119,7 @@
     color:var(--muted);
   }
   .onair .dot{width:8px;height:8px;border-radius:50%;background:var(--muted-dim);transition:.3s;}
-  .onair.live{color:var(--amber);border-color:#4A3A16;background:#1E1608;}
+  .onair.live{color:var(--amber);border-color:var(--live-bd);background:var(--live-bg);}
   .onair.live .dot{background:var(--amber);box-shadow:0 0 10px 2px #F2B84B99;animation:pulse 1.4s ease-in-out infinite;}
   @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
 
@@ -88,14 +134,14 @@
   }
   .switch{
     --w:36px;--h:20px;
-    width:var(--w);height:var(--h);border-radius:999px;background:#20263F;
+    width:var(--w);height:var(--h);border-radius:999px;background:var(--track);
     border:1px solid var(--border);position:relative;flex:0 0 auto;transition:.2s;
   }
   .switch::after{
     content:'';position:absolute;top:1px;left:1px;width:16px;height:16px;border-radius:50%;
     background:var(--muted-dim);transition:.2s;
   }
-  .switch.on{background:#3A2A12;border-color:var(--amber-dim);}
+  .switch.on{background:var(--amber-bg2);border-color:var(--amber-dim);}
   .switch.on::after{transform:translateX(16px);background:var(--amber);box-shadow:0 0 6px #F2B84B99;}
   .switch-btn{background:none;border:none;padding:0;display:flex;}
 
@@ -103,16 +149,25 @@
     background:var(--panel-raised);border:1px solid var(--border);color:var(--muted);
     padding:6px 12px;border-radius:8px;font-size:11.5px;display:flex;align-items:center;gap:6px;
   }
-  .fullstage-btn:hover{color:var(--text);border-color:#3A4278;}
+  .fullstage-btn:hover{color:var(--text);border-color:var(--line-strong);}
 
   /* ===== 3분할 그리드 2.5 : 5 : 2.5 ===== */
   .grid{
     flex:1;min-height:0;
-    display:grid;
-    grid-template-columns:2.5fr 5fr 2.5fr;
+    display:grid;position:relative;
+    grid-template-columns:var(--colL,2.5fr) var(--colC,5fr) var(--colR,2.5fr);
     gap:1px;
     background:var(--border-soft);
   }
+  /* 열 너비 조절 손잡이 (채팅 | 본화면 | 우측 패널) */
+  .splitter{position:absolute;top:0;bottom:0;width:11px;margin-left:-5px;cursor:col-resize;z-index:30;touch-action:none;}
+  .splitter::after{content:"";position:absolute;left:5px;top:0;bottom:0;width:1px;background:transparent;transition:background .15s;}
+  .splitter:hover::after,.splitter.active::after{background:var(--amber);width:3px;left:4px;}
+  .splitter::before{content:"⋮";position:absolute;top:50%;left:0;right:0;text-align:center;color:var(--muted);font-size:14px;line-height:1;transform:translateY(-50%);opacity:0;transition:opacity .15s;}
+  .splitter:hover::before,.splitter.active::before{opacity:1;color:var(--amber);}
+  body.col-dragging{cursor:col-resize;user-select:none;}
+  body.col-dragging iframe{pointer-events:none;}
+  .stage-only .splitter{display:none;}
   .panel{background:var(--bg);min-width:0;min-height:0;display:flex;flex-direction:column;}
 
   /* ===== 채팅 패널 (좌) ===== */
@@ -131,7 +186,7 @@
     border:1px solid var(--border);padding:1px 6px;border-radius:4px;letter-spacing:1px;
   }
   .chat-embed-wrap{flex:1;min-height:0;position:relative;}
-  .chat-embed-wrap iframe{width:100%;height:100%;border:0;background:#0D1120;}
+  .chat-embed-wrap iframe{width:100%;height:100%;border:0;background:var(--bg2);}
   .chat-demo{flex:1;min-height:0;display:flex;flex-direction:column;}
   .chat-log{flex:1;min-height:0;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:9px;}
   .chat-msg{font-size:12.5px;line-height:1.5;animation:msgIn .25s ease;}
@@ -150,7 +205,7 @@
   }
   .chat-input-row input:focus{border-color:var(--cyan);}
   .chat-input-row button{
-    background:var(--amber);color:#1a1305;border:none;border-radius:8px;padding:0 14px;font-weight:600;font-size:12.5px;
+    background:var(--amber);color:var(--on-amber);border:none;border-radius:8px;padding:0 14px;font-weight:600;font-size:12.5px;
   }
   .chat-hint{padding:8px 14px 12px;font-size:10.5px;color:var(--muted-dim);line-height:1.5;border-top:1px solid var(--border-soft);}
 
@@ -212,13 +267,13 @@
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .hud-right{display:flex;align-items:center;gap:8px;}
 
-  .stage-only .grid{grid-template-columns:0fr 1fr 0fr;}
+  .stage-only .grid{grid-template-columns:0fr 1fr 0fr !important;}
   .stage-only .chat-panel,.stage-only .settings-panel{display:none;}
   /* 상단바는 숨기지 않고 최소화만 함 — 여기 있는 버튼이 유일한 탈출구라 완전히 숨기면 안 됨 */
   .stage-only .topbar{padding:6px 12px;gap:10px;}
   .stage-only .topbar .brand .sub{display:none;}
   .stage-only .topbar .clock{display:none;}
-  .live-btn{padding:6px 12px;border-radius:8px;border:1px solid var(--amber-dim);background:#241a08;color:var(--amber);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;}
+  .live-btn{padding:6px 12px;border-radius:8px;border:1px solid var(--amber-dim);background:var(--amber-bg);color:var(--amber);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;}
   .live-btn:hover{border-color:var(--amber);}
   .live-btn.on{background:#3a0f16;border-color:#ff5470;color:#ff7a8e;animation:livePulse 1.6s ease-in-out infinite;}
   @keyframes livePulse{50%{box-shadow:0 0 0 3px #ff547033;}}
@@ -242,7 +297,7 @@
   .settings-panel .panel-head{padding:8px 10px;}
   .side-tabs{display:flex;gap:6px;width:100%;}
   .side-tab{flex:1;padding:8px 6px;border-radius:8px;border:1px solid var(--border);background:var(--panel-raised);color:var(--muted);font-size:12.5px;font-weight:600;cursor:pointer;}
-  .side-tab.on{color:var(--text);border-color:var(--amber);background:#241a08;}
+  .side-tab.on{color:var(--text);border-color:var(--amber);background:var(--amber-bg);}
   .tab-count{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--amber);}
   .queue-pane{padding:10px 12px 40px;display:flex;flex-direction:column;gap:8px;}
   .queue-pane[hidden]{display:none;}
@@ -257,12 +312,12 @@
   @keyframes qFlash{0%,35%{box-shadow:0 0 0 2px var(--amber),0 0 18px #f2b84b66;}100%{box-shadow:none;}}
   .queue-pane.onair #qLocate,.queue-pane.onair #qFollow,.queue-pane.onair label[title^="곡이 바뀔"]{display:none;}
   .resv-box{border:1px solid var(--border);border-radius:10px;background:var(--panel-raised);padding:8px 10px;}
-  .resv-head{display:flex;align-items:center;gap:6px;font-size:12.5px;margin-bottom:6px;}
+  .resv-head{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:12.5px;margin-bottom:6px;}
   .resv-head .hd-sp{flex:1;}
   .resv-list{position:relative;display:flex;flex-direction:column;gap:3px;max-height:260px;overflow:auto;}
   .rv-row{display:flex;align-items:center;gap:6px;font-size:12px;line-height:1.5;padding:3px 4px;border-radius:6px;}
   .rv-row.pend{color:var(--muted);}
-  .rv-row.cur{color:var(--amber);background:#241a08;}
+  .rv-row.cur{color:var(--amber);background:var(--amber-bg);}
   .rv-text{flex:1;min-width:0;word-break:break-all;}
   .rv-acts{display:flex;gap:2px;}
   .q-item.resv{border-color:var(--amber-dim);}
@@ -270,7 +325,7 @@
   .queue-pane.onair .resv-list{max-height:none;}
   .queue-pane.onair .resv-box{background:transparent;border:none;padding:0 0 6px;}
   .qp-right{display:flex;align-items:center;gap:10px;}
-  .qp-clear{padding:4px 8px;font-size:11px;}
+  .qp-clear{padding:4px 8px;font-size:11px;white-space:nowrap;}
   .queue-pane.onair .qp-clear{display:none;}
   .qp-onair{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:5px;cursor:pointer;}
   .qp-quick{display:grid;grid-template-columns:78px 1fr auto;gap:6px;}
@@ -280,7 +335,7 @@
   .queue-pane.onair .q-acts,.queue-pane.onair .q-kind,.queue-pane.onair .qp-quick,.queue-pane.onair .status-line,.queue-pane.onair #qClearBtn,.queue-pane.onair .q-lyr{display:none;}
   .queue-pane.onair .q-item{grid-template-columns:1fr;border:none;background:transparent;border-bottom:1px solid var(--border-soft);border-radius:0;padding:9px 4px;}
   .queue-pane.onair .q-title{font-size:15px;font-weight:600;-webkit-line-clamp:3;}
-  .queue-pane.onair .q-item.cur{background:#241a08;border-left:3px solid var(--amber);}
+  .queue-pane.onair .q-item.cur{background:var(--amber-bg);border-left:3px solid var(--amber);}
   .queue-pane.onair .q-req{border:none;padding:0;font-size:12px;pointer-events:none;color:var(--cyan);}
   .queue-pane.onair .q-req:placeholder-shown{display:none;}
 
@@ -310,11 +365,11 @@
   select:focus,.text-input:focus{border-color:var(--cyan);}
 
   input[type=range]{
-    -webkit-appearance:none;width:100%;height:4px;border-radius:4px;background:#20263F;outline:none;
+    -webkit-appearance:none;width:100%;height:4px;border-radius:4px;background:var(--track);outline:none;
   }
   input[type=range]::-webkit-slider-thumb{
     -webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--amber);
-    border:2px solid #1a1305;cursor:pointer;margin-top:-5px;
+    border:2px solid var(--on-amber);cursor:pointer;margin-top:-5px;
   }
   input[type=color]{
     -webkit-appearance:none;width:34px;height:28px;border:1px solid var(--border);border-radius:6px;
@@ -326,8 +381,8 @@
     padding:8px 12px;border-radius:8px;font-size:11.5px;font-weight:500;display:flex;align-items:center;
     justify-content:center;gap:6px;
   }
-  .btn:hover{border-color:#3A4278;}
-  .btn.primary{background:var(--amber);border-color:var(--amber);color:#1a1305;font-weight:600;}
+  .btn:hover{border-color:var(--line-strong);}
+  .btn.primary{background:var(--amber);border-color:var(--amber);color:var(--on-amber);font-weight:600;}
   .btn.primary:hover{background:#F7C766;}
   .btn.ghost{background:transparent;}
   .btn.full{width:100%;}
@@ -349,7 +404,7 @@
     padding:5px 10px;border-radius:999px;border:1px solid var(--border);background:var(--panel-raised);
     font-size:10.5px;color:var(--muted);
   }
-  .pill.active{border-color:var(--amber);color:var(--amber);background:#241a08;}
+  .pill.active{border-color:var(--amber);color:var(--amber);background:var(--amber-bg);}
 
   .status-line{font-size:10.5px;color:var(--muted-dim);font-family:'JetBrains Mono',monospace;}
   .status-line.ok{color:var(--cyan);}
@@ -373,8 +428,8 @@
     background:var(--panel-solid);color:var(--text);font-size:12px;padding:0;
     display:flex;align-items:center;justify-content:center;
   }
-  .mt-btn:hover{border-color:#3A4278;}
-  .mt-btn.on{background:#3A2A12;border-color:var(--amber-dim);color:var(--amber);}
+  .mt-btn:hover{border-color:var(--line-strong);}
+  .mt-btn.on{background:var(--amber-bg2);border-color:var(--amber-dim);color:var(--amber);}
   .mt-title{
     flex:1;min-width:0;padding:0 6px;font-size:11.5px;color:var(--muted);
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
@@ -400,7 +455,7 @@
   .q-item.dragging{position:relative;z-index:20;opacity:.92;box-shadow:0 8px 24px #000a;border-color:var(--amber);cursor:grabbing;}
   .q-item.drop-before{box-shadow:0 -3px 0 0 var(--amber);}
   .q-item.drop-after{box-shadow:0 3px 0 0 var(--amber);}
-  .q-item.cur{border-color:var(--amber);background:#241a08;}
+  .q-item.cur{border-color:var(--amber);background:var(--amber-bg);}
   .q-item.done{opacity:.5;}
   .q-item.fail{border-color:#5A2A2A;}
   .q-kind{
@@ -418,7 +473,7 @@
     width:24px;height:24px;border-radius:6px;border:1px solid var(--border);background:var(--panel-solid);
     color:var(--muted);font-size:11px;padding:0;display:flex;align-items:center;justify-content:center;
   }
-  .q-ibtn:hover{color:var(--text);border-color:#3A4278;}
+  .q-ibtn:hover{color:var(--text);border-color:var(--line-strong);}
   .q-lyr{
     margin-top:4px;font-size:10.5px;line-height:1.55;color:#9CA1BE;white-space:pre-wrap;overflow-wrap:anywhere;
     cursor:pointer;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
@@ -500,6 +555,7 @@
     .grid{
       display:block;overflow:visible;background:none;
     }
+    .splitter{display:none;}
     .panel{border-bottom:1px solid var(--border-soft);}
     .stage-panel{height:58vh;min-height:340px;}
     .chat-panel{height:48vh;min-height:280px;display:flex;flex-direction:column;}
@@ -545,6 +601,8 @@
 
   <div class="grid">
 
+    <div class="splitter" id="splitL" role="separator" aria-orientation="vertical" title="끌어서 채팅 ↔ 본화면 너비 조절 (더블클릭: 기본 비율)"></div>
+    <div class="splitter" id="splitR" role="separator" aria-orientation="vertical" title="끌어서 본화면 ↔ 우측 패널 너비 조절 (더블클릭: 기본 비율)"></div>
     <!-- ===== 좌: 채팅 ===== -->
     <aside class="panel chat-panel">
       <div class="panel-head">
@@ -683,6 +741,21 @@
               </div>
               <div class="hint">단순 색상거리 기반 크로마키예요. 조명이 고르고 배경색이 균일할수록 결과가 깔끔합니다.</div>
             </div>
+          </div>
+        </details>
+
+        <!-- 테마 -->
+        <details class="section">
+          <summary><span class="dot-ico"></span>테마<span class="chev">▸</span></summary>
+          <div class="section-body">
+            <div class="theme-grid" id="themeGrid">
+              <button class="theme-card" data-theme-id="midnight"><span class="theme-sw" style="background:linear-gradient(90deg,#F2B84B 0 30%,#FF3E7F 30% 50%,#171B33 50% 75%,#0A0D16 75%)"></span>1. 미드나이트 (기본)</button>
+              <button class="theme-card" data-theme-id="neon"><span class="theme-sw" style="background:linear-gradient(90deg,#C77DFF 0 30%,#FF4FD8 30% 50%,#2A1252 50% 75%,#0D0715 75%)"></span>2. 네온 퍼플</button>
+              <button class="theme-card" data-theme-id="forest"><span class="theme-sw" style="background:linear-gradient(90deg,#7BE0A4 0 30%,#F2C14E 30% 50%,#0F2E22 50% 75%,#07110E 75%)"></span>3. 포레스트</button>
+              <button class="theme-card" data-theme-id="sunset"><span class="theme-sw" style="background:linear-gradient(90deg,#FF9A5C 0 30%,#FF5C8A 30% 50%,#3D1424 50% 75%,#14080C 75%)"></span>4. 선셋 로즈</button>
+              <button class="theme-card" data-theme-id="ocean"><span class="theme-sw" style="background:linear-gradient(90deg,#4FC3F7 0 30%,#5EEAD4 30% 50%,#0C2B47 50% 75%,#06111C 75%)"></span>5. 오션 블루</button>
+            </div>
+            <label class="row" style="margin-top:10px;display:flex;gap:8px;align-items:center;font-size:12px;color:var(--muted);"><input type="checkbox" id="themeSpecToggle"> 스펙트럼 색상도 테마에 맞추기</label>
           </div>
         </details>
 
@@ -994,7 +1067,9 @@
       transitions:{ mode:'random', fixed:'fade', pool:[...EFFECTS], duration:0.9 },
       spectrum:{ enabled:true, style:'bars', position:'bottom', color1:'#F2B84B', color2:'#FF3E7F', sensitivity:1.2, opacity:0.9, mirror:true, size:100, glow:100 },
       ytSpectrum:false,
+      layout:{ left:null, right:null },
       stageBlur:0,
+      theme:'midnight',
       ytMode:'popup',
       audio:{ source:'file', volume:0.9 },
       screen:{ mode:'folder', keyColor:'#00ff66', similarity:38, smoothness:12, composite:false },
@@ -3139,7 +3214,7 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
         if(mediaEl){ try{ tctx.drawImage(mediaEl,0,0,target.width,target.height);}catch(e){} }
       } else {
         // 체크무늬로 투명 영역 표시(참고용) — 실제 투명 합성이 필요하면 무대 전체화면 모드 + 창 캡처(투명 배경 없음)를 활용하세요.
-        tctx.fillStyle = '#0A0D16'; tctx.fillRect(0,0,target.width,target.height);
+        tctx.fillStyle = (getComputedStyle(document.documentElement).getPropertyValue('--bg').trim()||'#0A0D16'); tctx.fillRect(0,0,target.width,target.height);
       }
       tctx.drawImage(camState.offCanvas,0,0,target.width,target.height);
     };
@@ -3253,6 +3328,63 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
   $('#sensRange').addEventListener('input', e=>{ settings.spectrum.sensitivity=+e.target.value; $('#sensVal').textContent=e.target.value; });
   $('#opacRange').addEventListener('input', e=>{ settings.spectrum.opacity=e.target.value/100; $('#opacVal').textContent=e.target.value+'%'; });
   $('#mirrorToggle').addEventListener('change', e=> settings.spectrum.mirror = e.target.checked);
+  /* ---------- 열 너비 조절 (채팅 / 본화면 / 우측 패널) ---------- */
+  const gridEl = document.querySelector('.grid');
+  const MIN_SIDE = 170, MIN_STAGE = 320;
+  function layoutValid(){ const l = settings.layout; return l && typeof l==='object'; }
+  function placeSplitters(){
+    const c = gridEl.querySelector('.chat-panel'), s = gridEl.querySelector('.settings-panel');
+    if(!c || !s) return;
+    const g = gridEl.getBoundingClientRect();
+    $('#splitL').style.left = (c.getBoundingClientRect().right - g.left)+'px';
+    $('#splitR').style.left = (s.getBoundingClientRect().left - g.left)+'px';
+  }
+  function applyLayout(){
+    if(!layoutValid()) settings.layout = { left:null, right:null };
+    const { left, right } = settings.layout;
+    const W = gridEl.clientWidth || window.innerWidth;
+    const clamp = (v)=>Math.max(MIN_SIDE, Math.min(W - MIN_STAGE - MIN_SIDE, v));
+    if(typeof left==='number'){ gridEl.style.setProperty('--colL', clamp(left/100*W)+'px'); } else gridEl.style.removeProperty('--colL');
+    if(typeof right==='number'){ gridEl.style.setProperty('--colR', clamp(right/100*W)+'px'); } else gridEl.style.removeProperty('--colR');
+    if(typeof left==='number' || typeof right==='number') gridEl.style.setProperty('--colC', 'minmax(0,1fr)'); else gridEl.style.removeProperty('--colC');
+    // 한쪽만 직접 조절했을 때 다른 쪽은 기본 비율 유지
+    if(typeof left==='number' && typeof right!=='number') gridEl.style.setProperty('--colR', Math.max(MIN_SIDE, W*0.25)+'px');
+    if(typeof right==='number' && typeof left!=='number') gridEl.style.setProperty('--colL', Math.max(MIN_SIDE, W*0.25)+'px');
+    placeSplitters();
+    try{ localStorage.setItem('layoutCols', JSON.stringify(settings.layout)); }catch(e){}
+  }
+  window.applyLayout = applyLayout;
+  function splitDrag(el, side){
+    let start = null;
+    el.addEventListener('pointerdown', e=>{
+      if(e.button>0) return;
+      const g = gridEl.getBoundingClientRect();
+      const c = gridEl.querySelector('.chat-panel').getBoundingClientRect();
+      const s = gridEl.querySelector('.settings-panel').getBoundingClientRect();
+      start = { id:e.pointerId, g, L:c.width, R:s.width };
+      try{ el.setPointerCapture(e.pointerId); }catch(err){}
+      el.classList.add('active'); document.body.classList.add('col-dragging');
+      e.preventDefault();
+    });
+    el.addEventListener('pointermove', e=>{
+      if(!start) return;
+      const W = start.g.width;
+      let L = start.L, R = start.R;
+      if(side==='L') L = e.clientX - start.g.left; else R = start.g.right - e.clientX;
+      L = Math.max(MIN_SIDE, L); R = Math.max(MIN_SIDE, R);
+      if(W - L - R < MIN_STAGE){ if(side==='L') L = W - R - MIN_STAGE; else R = W - L - MIN_STAGE; }
+      settings.layout = { left:+(L/W*100).toFixed(2), right:+(R/W*100).toFixed(2) };
+      applyLayout();
+    });
+    const end = ()=>{ if(!start) return; start = null; el.classList.remove('active'); document.body.classList.remove('col-dragging'); };
+    el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
+    el.addEventListener('dblclick', ()=>{ settings.layout = { left:null, right:null }; applyLayout(); });
+  }
+  splitDrag($('#splitL'),'L'); splitDrag($('#splitR'),'R');
+  try{ const sv = JSON.parse(localStorage.getItem('layoutCols')||'null'); if(sv && typeof sv==='object') settings.layout = { left:typeof sv.left==='number'?sv.left:null, right:typeof sv.right==='number'?sv.right:null }; }catch(e){}
+  if(window.ResizeObserver){ new ResizeObserver(()=>applyLayout()).observe(gridEl); }
+  window.addEventListener('resize', applyLayout);
+
   function applyStageBlur(){
     const v = Math.max(0, Math.min(100, Math.round(+settings.stageBlur || 0)));
     settings.stageBlur = v;
@@ -3319,6 +3451,29 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
   /* ============================================================
      설정 저장 / 불러오기 / JSON
   ============================================================ */
+  /* ============================================================
+     테마
+  ============================================================ */
+  const THEME_IDS = ['midnight','neon','forest','sunset','ocean'];
+  const THEME_SPEC = { midnight:['#F2B84B','#FF3E7F'], neon:['#C77DFF','#FF4FD8'], forest:['#7BE0A4','#F2C14E'], sunset:['#FF9A5C','#FF5C8A'], ocean:['#4FC3F7','#5EEAD4'] };
+  window.applyTheme = function(){
+    if(!THEME_IDS.includes(settings.theme)) settings.theme = 'midnight';
+    if(settings.theme==='midnight') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', settings.theme);
+    $$('#themeGrid .theme-card').forEach(b=>b.classList.toggle('on', b.dataset.themeId===settings.theme));
+    try{ localStorage.setItem('bcTheme', settings.theme); }catch(e){}
+  };
+  $$('#themeGrid .theme-card').forEach(b=>b.addEventListener('click', ()=>{
+    settings.theme = b.dataset.themeId;
+    if($('#themeSpecToggle').checked){
+      const c = THEME_SPEC[settings.theme];
+      settings.spectrum.color1 = c[0]; settings.spectrum.color2 = c[1];
+      $('#specColor1').value = c[0]; $('#specColor2').value = c[1];
+    }
+    window.applyTheme();
+  }));
+  try{ const t = localStorage.getItem('bcTheme'); if(THEME_IDS.includes(t)) settings.theme = t; }catch(e){}
+
   function collectSettings(){
     settings.queue = Object.assign({mode:'sequential', loop:true, follow:true}, settings.queue || {});
     settings.queue.urls = Q.items.filter(i=>i.kind!=='file').map(i=>({kind:i.kind, src:i.src, ytId:i.ytId, title:i.title, requester:i.requester, lyrics:i.lyrics, titleEdited:i.titleEdited, dur:i.dur>0 ? Math.round(i.dur) : 0}));
@@ -3364,6 +3519,8 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
     if(typeof settings.spectrum.glow!=='number') settings.spectrum.glow=100;
     settings.ytSpectrum = !!settings.ytSpectrum;
     if(window.applyStageBlur) window.applyStageBlur();
+    if(window.applyLayout) window.applyLayout();
+    if(window.applyTheme) window.applyTheme();
     if(settings.ytMode!=='stage') settings.ytMode = 'popup';
     if(window.ytApplyMode) window.ytApplyMode();
     $('#ytSpecToggle').checked = settings.ytSpectrum;
