@@ -534,6 +534,15 @@
   .yt-note{padding:6px 12px 8px;font-size:10.5px;line-height:1.5;color:var(--amber);}
   .yt-note:empty{display:none;}
 
+  .lf-back{position:fixed;inset:0;z-index:120;background:#000000a0;display:none;align-items:center;justify-content:center;padding:16px;}
+  .lf-back.show{display:flex;}
+  .lf-box{width:min(640px,100%);max-height:86vh;display:flex;flex-direction:column;background:var(--panel-solid);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;}
+  .lf-head{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--border-soft);font-size:13px;font-weight:600;}
+  .lf-head .sp{flex:1;}
+  .lf-body{overflow:auto;padding:10px 14px;display:flex;flex-direction:column;gap:6px;}
+  .lf-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border-soft);border-radius:8px;background:var(--panel-raised);color:var(--text);font-size:12px;text-align:left;}
+  .lf-item:hover{border-color:var(--amber);}
+  .lf-pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;line-height:1.6;color:var(--text);margin:0;}
   .toast{
     position:fixed;left:50%;top:14px;transform:translateX(-50%) translateY(-24px);z-index:90;
     max-width:min(92vw,520px);padding:9px 14px;border-radius:10px;
@@ -592,6 +601,7 @@
     <div class="clock bc-timer" id="bcTimer" title="총 방송 경과시간 · 클릭하면 시작/초기화">방송 0:00:00</div>
     <div class="clock" id="clock">--:--:--</div>
     <button class="live-btn" id="liveBtn" title="방송 시작: 이후 재생되는 곡의 제목·정보를 txt 로그로 자동 저장해요">▶ 방송시작</button>
+    <button class="live-btn" id="logFolderBtn" title="로그 폴더 열기: 저장된 방송 로그 목록을 보고 내용을 확인·복사·내려받아요">📂 폴더열기</button>
     <div class="standby-toggle-top">
       방송준비중
       <button class="switch-btn" id="standbyTopBtn" aria-label="방송준비중 전환"><span class="switch" id="standbySwitch"></span></button>
@@ -1045,6 +1055,11 @@
 </div>
 <div class="toast" id="toast" role="status"></div>
 
+  <div class="lf-back" id="lfBack"><div class="lf-box">
+    <div class="lf-head"><span id="lfTitle">방송 로그 폴더</span><span class="sp"></span>
+      <button class="btn" id="lfChange">폴더 바꾸기</button><button class="btn" id="lfCopy" style="display:none">복사</button><button class="btn" id="lfDown" style="display:none">내려받기</button><button class="btn" id="lfClose">닫기</button></div>
+    <div class="lf-body" id="lfBody"></div>
+  </div></div>
 <script>
 (function(){
   'use strict';
@@ -2521,6 +2536,61 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
     if(!LOG.on){ liveStart(); return; }
     if(confirm('방송을 종료하고 로그를 마무리할까요?')) liveStop();
   });
+
+  /* ---------- 📂 폴더열기: 로그 폴더의 방송 로그 목록 보기 ---------- */
+  (function(){
+    const back = $('#lfBack'), body = $('#lfBody');
+    let root = null, viewText = '', viewName = '';
+    const close = ()=>back.classList.remove('show');
+    function setView(on){ $('#lfCopy').style.display = $('#lfDown').style.display = on ? '' : 'none'; }
+    async function listLogs(){
+      setView(false); viewText = '';
+      $('#lfChange').textContent = '폴더 바꾸기';
+      $('#lfTitle').textContent = '방송 로그 폴더 · '+(root.name||'');
+      body.innerHTML = '';
+      const found = [];
+      for await (const [name, h] of root.entries()){
+        if(h.kind==='directory' && /^방송로그_/.test(name)){
+          try{ const fh = await h.getFileHandle('방송로그.txt'); found.push({ name, fh }); }catch(e){}
+        }
+      }
+      found.sort((a,b)=>b.name.localeCompare(a.name));
+      if(!found.length){ const d = document.createElement('div'); d.className = 'hint'; d.textContent = '이 폴더에는 방송 로그가 아직 없어요. (방송시작 때 고른 폴더를 선택하세요)'; body.appendChild(d); return; }
+      found.forEach(f=>{
+        const b = document.createElement('button'); b.className = 'lf-item'; b.textContent = '📄 '+f.name;
+        b.addEventListener('click', async ()=>{
+          const file = await f.fh.getFile(); viewText = await file.text(); viewName = f.name+'.txt';
+          body.innerHTML = ''; const pre = document.createElement('pre'); pre.className = 'lf-pre'; pre.textContent = viewText; body.appendChild(pre);
+          $('#lfTitle').textContent = f.name; setView(true);
+          $('#lfChange').textContent = '← 목록';
+        });
+        body.appendChild(b);
+      });
+      $('#lfChange').textContent = '폴더 바꾸기';
+    }
+    async function pick(){
+      try{ root = await window.showDirectoryPicker({ mode:'read' }); await listLogs(); }
+      catch(err){ if(!(err && err.name==='AbortError')) toast('폴더를 열지 못했어요'); }
+    }
+    $('#logFolderBtn').addEventListener('click', async ()=>{
+      if(!window.showDirectoryPicker){
+        toast('이 브라우저는 폴더 열기를 지원하지 않아요 (PC 크롬/엣지에서 가능). 로그는 종료 시 txt로 내려받아요');
+        return;
+      }
+      back.classList.add('show');
+      const r = LOG.dir || root;
+      if(r){ root = r; try{ await listLogs(); return; }catch(e){ root = null; } }
+      body.innerHTML = ''; await pick();
+    });
+    $('#lfChange').addEventListener('click', ()=>{ if($('#lfChange').textContent.includes('목록')) listLogs(); else pick(); });
+    $('#lfCopy').addEventListener('click', async ()=>{ try{ await navigator.clipboard.writeText(viewText); toast('복사했어요'); }catch(e){ toast('복사하지 못했어요'); } });
+    $('#lfDown').addEventListener('click', ()=>{
+      const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff'+viewText], {type:'text/plain;charset=utf-8'}));
+      a.download = viewName || '방송로그.txt'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 3000);
+    });
+    $('#lfClose').addEventListener('click', close);
+    back.addEventListener('click', e=>{ if(e.target===back) close(); });
+  })();
 
   function updateNowPlaying(){
     const it = itemById(Q.curId);
