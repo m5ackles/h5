@@ -673,7 +673,7 @@
           <div class="qp-title">신청곡 리스트</div>
           <div class="qp-right"><button class="btn qp-clear" id="qLocate" title="지금 재생 중인 곡 위치로 이동">📍 현재곡</button><label class="qp-onair" title="곡이 바뀔 때 목록이 그 곡 위치로 자동 이동"><input type="checkbox" id="qFollow" checked> 자동 이동</label><button class="btn qp-clear" id="qClearReq" title="모든 곡의 신청자 이름을 한 번에 지웁니다">신청자 모두 지우기</button><label class="qp-onair"><input type="checkbox" id="qOnair"> 방송용 보기</label></div>
         </div>
-        <div class="qp-total" id="qTotal" title="경과 · 남은 · 총 시간 (대기열 전체)"></div>
+        <div class="qp-total" id="qTotal" title="진행 · 남은 · 총 시간 (📌 재생 순서 기준)"></div>
         <div class="resv-box">
           <div class="resv-head"><b>📌 재생 순서</b> <span class="tab-count" id="qResvCount"></span>
             <span class="hd-sp"></span><button class="btn qp-clear" id="qResvCopy" title="순번 포함 텍스트로 복사">복사</button><button class="btn qp-clear" id="qResvSave" title="재생 순서를 txt 파일로 저장">파일저장</button><button class="btn qp-clear" id="qResvClear" title="아직 재생 전인 예약만 취소">예약 비우기</button><button class="btn qp-clear" id="qOrderReset" title="재생 순서 기록 초기화">기록 초기화</button></div>
@@ -2370,8 +2370,8 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
   $('#qqUrl').addEventListener('keydown', ev=>{ ev.stopPropagation(); if(ev.key==='Enter') $('#qqAdd').click(); });
   $('#qqReq').addEventListener('keydown', ev=>ev.stopPropagation());
 
-  // 대기열 시간: 번호 순서(1번부터) 기준으로만 계산
-  //  진행 = 지금 곡 앞 곡들의 길이 합 + 지금 곡 재생 위치 / 남은 = 총 − 진행 / 총 = 목록 전체 합
+  // 대기열 시간: 📌 재생 순서 리스트 기준 (기록이 없으면 번호 순서)
+  //  진행 = 지금 곡 앞 곡들의 길이 합 + 지금 곡 재생 위치 / 남은 = 총 − 진행 / 총 = 순서 리스트 전체 합
   /* ---------- 총 방송 경과시간 (상단바) ---------- */
   let bcStartTs = 0;
   try{ bcStartTs = parseInt(localStorage.getItem('bcStart')) || 0; }catch(e){}
@@ -2398,11 +2398,20 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
   bcRender();
 
   function updateQTotal(curPos){
+    // 📌 재생 순서 리스트 기준: 재생한 곡 + 재생 중 + 예약된 곡을 그 순서대로 계산 (순서 기록이 아직 없으면 번호 목록 기준)
     let total = 0, before = 0, unknown = 0;
-    const ci = Q.items.findIndex(i=>i.id===Q.curId);
-    Q.items.forEach((i, idx)=>{
-      if(i.failed) return;
-      if(i.dur>0){ total += i.dur; if(ci>=0 && idx<ci) before += i.dur; }
+    let seq;
+    if(Q.order.length){
+      let cur = Q.order.findIndex(o=>o.state==='playing');
+      seq = Q.order.map(o=>{ const it = itemById(o.id); return { dur: it ? it.dur : o.snap.dur, failed: it && it.failed }; });
+      var ci = cur;
+    } else {
+      seq = Q.items.map(i=>({ dur:i.dur, failed:i.failed }));
+      var ci = Q.items.findIndex(i=>i.id===Q.curId);
+    }
+    seq.forEach((x, idx)=>{
+      if(x.failed) return;
+      if(x.dur>0){ total += x.dur; if(ci>=0 && idx<ci) before += x.dur; }
       else unknown++;
     });
     const el = $('#qTotal');
