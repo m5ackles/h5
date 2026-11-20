@@ -165,8 +165,14 @@
   .media-layer img, .media-layer video{width:100%;height:100%;object-fit:contain;object-position:center;background:#000;display:block;}
   .stage-frame.reduced-motion .media-layer{transition:opacity .5s linear;}
 
-  #chromaCanvas, #spectrumCanvas{position:absolute;inset:0;width:100%;height:100%;z-index:4;pointer-events:none;}
-  #chromaCanvas{z-index:3;}
+  #chromaCanvas, #spectrumCanvas{position:absolute;inset:0;width:100%;height:100%;z-index:5;pointer-events:none;}
+  #chromaCanvas{z-index:4;}
+  /* 영상·사진(유튜브 메인 화면 포함)을 흐리게 덮는 층: 웹캠(크로마키)·스펙트럼·방송준비중 이미지는 그 위에 선명하게 */
+  .stage-blur{position:absolute;inset:0;z-index:3;pointer-events:none;display:none;}
+  .stage-blur.on{display:block;}
+  .blur-ctl{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);white-space:nowrap;}
+  .blur-ctl input[type=range]{width:110px;margin:0;}
+  .blur-ctl .bv{font-family:'JetBrains Mono',monospace;color:var(--amber);min-width:26px;text-align:right;}
 
   .stage-empty{
     position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -212,6 +218,11 @@
   .stage-only .topbar{padding:6px 12px;gap:10px;}
   .stage-only .topbar .brand .sub{display:none;}
   .stage-only .topbar .clock{display:none;}
+  .live-btn{padding:6px 12px;border-radius:8px;border:1px solid var(--amber-dim);background:#241a08;color:var(--amber);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;}
+  .live-btn:hover{border-color:var(--amber);}
+  .live-btn.on{background:#3a0f16;border-color:#ff5470;color:#ff7a8e;animation:livePulse 1.6s ease-in-out infinite;}
+  @keyframes livePulse{50%{box-shadow:0 0 0 3px #ff547033;}}
+  .stage-only .live-btn{padding:4px 8px;}
   .bc-timer{cursor:pointer;color:var(--amber);user-select:none;}
   .bc-timer.idle{color:var(--muted);}
 
@@ -242,6 +253,20 @@
   .qp-total{display:flex;flex-wrap:wrap;gap:4px 12px;}
   .qp-total b{color:var(--text);font-weight:600;}
   .qp-total .qp-unk{color:var(--muted);font-size:10.5px;}
+  .q-item.flash{animation:qFlash 1.4s ease-out;}
+  @keyframes qFlash{0%,35%{box-shadow:0 0 0 2px var(--amber),0 0 18px #f2b84b66;}100%{box-shadow:none;}}
+  .queue-pane.onair #qLocate,.queue-pane.onair #qFollow,.queue-pane.onair label[title^="곡이 바뀔"]{display:none;}
+  .resv-box{border:1px solid var(--border);border-radius:10px;background:var(--panel-raised);padding:8px 10px;}
+  .resv-head{display:flex;align-items:center;gap:6px;font-size:12.5px;margin-bottom:6px;}
+  .resv-head .hd-sp{flex:1;}
+  .resv-list{display:flex;flex-direction:column;gap:3px;max-height:260px;overflow:auto;}
+  .rv-row{display:flex;align-items:center;gap:6px;font-size:12px;line-height:1.5;padding:3px 4px;border-radius:6px;}
+  .rv-row.cur{color:var(--amber);background:#241a08;}
+  .rv-text{flex:1;min-width:0;word-break:break-all;}
+  .rv-acts{display:flex;gap:2px;}
+  .q-item.resv{border-color:var(--amber-dim);}
+  .queue-pane.onair .rv-acts,.queue-pane.onair .resv-head button{display:none;}
+  .queue-pane.onair .resv-box{background:transparent;border:none;padding:0 0 6px;}
   .qp-right{display:flex;align-items:center;gap:10px;}
   .qp-clear{padding:4px 8px;font-size:11px;}
   .queue-pane.onair .qp-clear{display:none;}
@@ -498,9 +523,11 @@
       <button class="mt-btn" id="mtDuck" title="대화 모드: 볼륨 낮추기 (D)">🎙</button>
       <div class="mt-title" id="mtTitle">재생 대기</div>
     </div>
+    <div class="blur-ctl" title="영상·사진이 재생되는 화면을 흐리게 가려요 (0~100)">🌫 블러<input type="range" id="blurRange" min="0" max="100" step="1" value="0"><span class="bv" id="blurVal">0</span></div>
     <div class="topbar-spacer"></div>
     <div class="clock bc-timer" id="bcTimer" title="총 방송 경과시간 · 클릭하면 시작/초기화">방송 0:00:00</div>
     <div class="clock" id="clock">--:--:--</div>
+    <button class="live-btn" id="liveBtn" title="방송 시작: 이후 재생되는 곡의 제목·정보를 txt 로그로 자동 저장해요">▶ 방송시작</button>
     <div class="standby-toggle-top">
       방송준비중
       <button class="switch-btn" id="standbyTopBtn" aria-label="방송준비중 전환"><span class="switch" id="standbySwitch"></span></button>
@@ -535,6 +562,7 @@
       <div class="stage-frame" id="stageFrame">
         <div class="media-layer" id="layerA"></div>
         <div class="media-layer" id="layerB"></div>
+        <div class="stage-blur" id="stageBlur"></div>
         <canvas id="chromaCanvas"></canvas>
         <canvas id="spectrumCanvas"></canvas>
 
@@ -577,9 +605,14 @@
       <div class="settings-scroll queue-pane" id="paneQueue" hidden>
         <div class="qp-top">
           <div class="qp-title">신청곡 리스트</div>
-          <div class="qp-right"><button class="btn qp-clear" id="qClearReq" title="모든 곡의 신청자 이름을 한 번에 지웁니다">신청자 모두 지우기</button><label class="qp-onair"><input type="checkbox" id="qOnair"> 방송용 보기</label></div>
+          <div class="qp-right"><button class="btn qp-clear" id="qLocate" title="지금 재생 중인 곡 위치로 이동">📍 현재곡</button><label class="qp-onair" title="곡이 바뀔 때 목록이 그 곡 위치로 자동 이동"><input type="checkbox" id="qFollow" checked> 자동 이동</label><button class="btn qp-clear" id="qClearReq" title="모든 곡의 신청자 이름을 한 번에 지웁니다">신청자 모두 지우기</button><label class="qp-onair"><input type="checkbox" id="qOnair"> 방송용 보기</label></div>
         </div>
         <div class="qp-total" id="qTotal" title="경과 · 남은 · 총 시간 (대기열 전체)"></div>
+        <div class="resv-box">
+          <div class="resv-head"><b>📌 재생 순서</b> <span class="tab-count" id="qResvCount"></span>
+            <span class="hd-sp"></span><button class="btn qp-clear" id="qResvCopy" title="순번 포함 텍스트로 복사">복사</button><button class="btn qp-clear" id="qResvClear">예약 비우기</button></div>
+          <div class="resv-list" id="qResvList"></div>
+        </div>
         <div class="qp-quick">
           <input type="text" class="text-input" id="qqReq" placeholder="신청자">
           <input type="text" class="text-input" id="qqUrl" placeholder="곡 주소 (Suno·유튜브·mp3)">
@@ -953,12 +986,13 @@
       transitions:{ mode:'random', fixed:'fade', pool:[...EFFECTS], duration:0.9 },
       spectrum:{ enabled:true, style:'bars', position:'bottom', color1:'#F2B84B', color2:'#FF3E7F', sensitivity:1.2, opacity:0.9, mirror:true, size:100, glow:100 },
       ytSpectrum:false,
+      stageBlur:0,
       ytMode:'popup',
       audio:{ source:'file', volume:0.9 },
       screen:{ mode:'folder', keyColor:'#00ff66', similarity:38, smoothness:12, composite:false },
       standby:{ enabled:false, image:null },
       chat:{ embedUrl:'' },
-      queue:{ mode:'sequential', loop:true, urls:[] }
+      queue:{ mode:'sequential', loop:true, follow:true, urls:[] }
     };
   }
 
@@ -1790,7 +1824,7 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
   if(!audioState.el){ audioState.el = new Audio(); audioState.el.crossOrigin='anonymous'; }
 
   const Q = {
-    items:[], curId:null, nextId:null, history:[], uid:0,
+    items:[], curId:null, nextId:null, resv:[], history:[], uid:0,
     state:'stopped',        // playing | paused | stopped
     backend:null,           // cors(실제 분석) | plain(분석 불가) | yt(유튜브)
     simulated:false,        // true면 실제 소리 대신 시뮬레이션 스펙트럼
@@ -1970,6 +2004,54 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
     qAddMsg(files.length ? `내 파일 ${files.length}곡 추가됨` : '음악 파일을 찾지 못했어요', files.length>0);
   });
 
+  /* ---------- 재생 순서 리스트 (지금 곡 + 예약한 곡, 순번 포함 텍스트 목록) ---------- */
+  function resvLines(){
+    const lines = [];
+    const info = it=>{
+      const kind = it.kind==='youtube' ? 'YouTube' : (it.kind==='file' ? '내 파일' : (/suno\.ai/i.test(it.src||'') ? 'Suno' : '웹 주소'));
+      return [it.title, it.requester ? '신청 '+it.requester : '', it.dur>0 ? fmtLong(it.dur) : '', kind].filter(Boolean).join(' | ');
+    };
+    const cur = itemById(Q.curId);
+    if(cur) lines.push({ tag:'▶ 재생 중', no:Q.items.indexOf(cur)+1, text:info(cur), id:cur.id, cur:true });
+    Q.resv.forEach((id,i)=>{ const it = itemById(id); if(it) lines.push({ tag:String(i+1)+'.', no:Q.items.indexOf(it)+1, text:info(it), id, cur:false, idx:i }); });
+    return lines;
+  }
+  function renderResv(){
+    const box = $('#qResvList'); if(!box) return;
+    box.innerHTML = '';
+    const lines = resvLines();
+    const hasResv = Q.resv.length>0;
+    $('#qResvCount').textContent = hasResv ? '('+Q.resv.length+'곡 예약)' : '';
+    if(!lines.length){
+      const d = document.createElement('div'); d.className = 'hint';
+      d.textContent = '곡 오른쪽의 ⤒ 버튼을 누르는 순서대로 여기에 쌓이고, 그 순서대로 재생돼요.';
+      box.appendChild(d); return;
+    }
+    lines.forEach(L=>{
+      const row = document.createElement('div'); row.className = 'rv-row'+(L.cur?' cur':'');
+      const t = document.createElement('div'); t.className = 'rv-text';
+      t.textContent = L.tag+' ['+L.no+'번] '+L.text;
+      row.appendChild(t);
+      if(!L.cur){
+        const acts = document.createElement('div'); acts.className = 'rv-acts';
+        const mk = (txt,title,fn)=>{ const b=document.createElement('button'); b.className='q-ibtn'; b.textContent=txt; b.title=title; b.addEventListener('click',fn); acts.appendChild(b); };
+        mk('↑','위로',()=>{ if(L.idx>0){ [Q.resv[L.idx-1],Q.resv[L.idx]]=[Q.resv[L.idx],Q.resv[L.idx-1]]; renderQueue(); } });
+        mk('↓','아래로',()=>{ if(L.idx<Q.resv.length-1){ [Q.resv[L.idx+1],Q.resv[L.idx]]=[Q.resv[L.idx],Q.resv[L.idx+1]]; renderQueue(); } });
+        mk('✕','예약 취소',()=>{ Q.resv.splice(L.idx,1); renderQueue(); });
+        row.appendChild(acts);
+      }
+      box.appendChild(row);
+    });
+  }
+  $('#qResvClear').addEventListener('click', ()=>{ Q.resv = []; renderQueue(); });
+  $('#qResvCopy').addEventListener('click', ()=>{
+    const text = resvLines().map(L=>L.tag+' ['+L.no+'번] '+L.text).join('\n');
+    if(!text){ toast('복사할 순서가 없어요'); return; }
+    const done = ()=>toast('재생 순서를 복사했어요');
+    if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, ()=>toast('복사에 실패했어요'));
+    else toast('이 브라우저에서는 복사를 지원하지 않아요');
+  });
+
   function renderQueue(){
     const list = $('#qList');
     list.innerHTML = '';
@@ -1981,7 +2063,7 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
     Q.items.forEach((it,idx)=>{
       const isCur = it.id===Q.curId;
       const row = document.createElement('div');
-      row.className = 'q-item'+(isCur?' cur':'')+(it.played && !isCur?' done':'')+(it.failed?' fail':'');
+      row.className = 'q-item'+(Q.resv.includes(it.id)?' resv':'')+(isCur?' cur':'')+(it.played && !isCur?' done':'')+(it.failed?' fail':'');
 
       const badge = document.createElement('span');
       badge.className = 'q-kind';
@@ -1993,7 +2075,8 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
       const bits = [];
       if(it.dur>0) bits.push('⏱ '+fmtLong(it.dur));
       if(isCur) bits.push(Q.state==='playing' ? '▶ 재생 중' : (Q.state==='paused' ? '⏸ 일시정지' : '⏹ 정지'));
-      if(Q.nextId===it.id) bits.push('다음 곡 예약');
+      const rvPos = Q.resv.indexOf(it.id);
+      if(rvPos>=0) bits.push('📌 예약 '+(rvPos+1)+'번째');
       if(it.failed) bits.push('⚠ '+(it.failMsg || '재생 실패'));
       if(bits.length){
         const meta = document.createElement('div'); meta.className = 'q-meta'; meta.textContent = bits.join(' · ');
@@ -2021,7 +2104,11 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
         b.addEventListener('click', fn); acts.appendChild(b);
       };
       mk('▶','지금 재생',()=>qPlayNow(it.id));
-      mk('⤒','다음 곡으로 예약',()=>{ Q.nextId = it.id; renderQueue(); });
+      mk(rvPos>=0 ? '📌' : '⤒', rvPos>=0 ? '예약 취소' : '재생 예약 (누른 순서대로 재생)', ()=>{
+        const k = Q.resv.indexOf(it.id);
+        if(k>=0) Q.resv.splice(k,1); else Q.resv.push(it.id);
+        renderQueue();
+      });
       mk('✎','제목·가사 수정',()=>qOpenEdit(it.id));
       mk('✕','삭제',()=>qRemove(it.id));
 
@@ -2031,6 +2118,7 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
     const waiting = Q.items.filter(i=>!i.played && !i.failed && i.id!==Q.curId).length;
     updateQTotal(NaN);
     $('#tabQCount').textContent = Q.items.length ? '('+Q.items.length+')' : '';
+    renderResv();
     $('#qCount').textContent = Q.items.length ? `전체 ${Q.items.length}곡 · 대기 ${waiting}곡` : '대기열 비어있음';
     updateNowPlaying();
   }
@@ -2039,6 +2127,7 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
     const q = b.dataset.tab==='queue';
     document.querySelectorAll('.side-tab').forEach(x=>x.classList.toggle('on', x===b));
     $('#paneQueue').hidden = !q; $('#paneSettings').hidden = q;
+    if(q && settings.queue.follow !== false) setTimeout(qScrollToCur, 50);
   }));
   $('#qClearReq').addEventListener('click', ()=>{
     const n = Q.items.filter(i=>i.requester).length;
@@ -2106,10 +2195,107 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
       + (unknown ? '<span class="qp-unk">미확인 '+unknown+'곡</span>' : '');
   }
 
+  /* ---------- 방송 로그 자동 저장 (방송시작 ~ 방송종료) ---------- */
+  const LOG = { on:false, text:'', n:0, cur:null, dir:null, subName:'', fileHandle:null, chain:Promise.resolve(), saveMode:'memory', startedAt:null };
+  const pad2 = n=>String(n).padStart(2,'0');
+  const fmtDate = d=>d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());
+  const fmtClock = d=>pad2(d.getHours())+':'+pad2(d.getMinutes())+':'+pad2(d.getSeconds());
+  const kindText = it=> it.kind==='youtube' ? 'YouTube' : (it.kind==='file' ? '내 파일' : (/suno\.ai/i.test(it.src||'') ? 'Suno' : '웹 주소(mp3)'));
+  function logAddress(it){
+    if(it.kind==='youtube') return 'https://youtu.be/'+it.ytId;
+    if(it.kind==='file') return '(내 컴퓨터 파일)';
+    return it.src;
+  }
+  function logFlush(){
+    // 파일은 매번 전체 내용을 다시 써서 저장 (중간에 끊겨도 마지막 곡까지는 남음)
+    if(!LOG.fileHandle) return Promise.resolve();
+    const body = '\ufeff'+LOG.text;
+    LOG.chain = LOG.chain.then(async ()=>{
+      const w = await LOG.fileHandle.createWritable();
+      await w.write(body); await w.close();
+    }).catch(err=>{
+      LOG.fileHandle = null; LOG.saveMode = 'memory';
+      toast('로그 파일 저장에 실패했어요. 방송종료 시 txt로 내려받을 수 있어요');
+    });
+    return LOG.chain;
+  }
+  function logBegin(it){
+    if(!LOG.on || !it) return;
+    LOG.cur = { id:it.id, start:new Date(), pos:0, item:{ title:it.title, kind:it.kind, src:it.src, ytId:it.ytId, requester:it.requester, dur:it.dur, failed:false } };
+  }
+  function logFinish(){
+    if(!LOG.on || !LOG.cur) return;
+    const c = LOG.cur; LOG.cur = null;
+    const live = itemById(c.id);
+    const it = Object.assign({}, c.item, live ? { title:live.title, requester:live.requester, dur:live.dur, failed:live.failed } : {});
+    const end = new Date();
+    const pos = Math.max(0, c.pos || 0);
+    const full = it.dur>0 && pos >= it.dur-3;
+    const result = it.failed ? '재생 실패(건너뜀)' : (full ? '끝까지 재생' : '중간에 넘김/정지');
+    LOG.n++;
+    LOG.text += '['+LOG.n+'] '+fmtDate(c.start)+' '+fmtClock(c.start)+' ~ '+fmtClock(end)+'\r\n'
+      + '  제목: '+it.title+'\r\n'
+      + '  종류: '+kindText(it)+'\r\n'
+      + '  신청자: '+(it.requester || '-')+'\r\n'
+      + '  재생 시간: '+fmtLong(pos)+(it.dur>0 ? ' / 곡 길이 '+fmtLong(it.dur) : '')+'  ('+result+')\r\n'
+      + '  주소: '+logAddress(it)+'\r\n\r\n';
+    logFlush();
+  }
+  function logDownload(){
+    const blob = new Blob(['\ufeff'+LOG.text], { type:'text/plain;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = '방송로그_'+LOG.subName.replace(/^방송로그_/,'')+'.txt';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 3000);
+  }
+  async function liveStart(){
+    const now = new Date();
+    LOG.subName = '방송로그_'+fmtDate(now)+'_'+pad2(now.getHours())+pad2(now.getMinutes());
+    LOG.saveMode = 'memory'; LOG.dir = null; LOG.fileHandle = null; LOG.n = 0; LOG.cur = null;
+    if(window.showDirectoryPicker){
+      try{
+        const root = await window.showDirectoryPicker({ mode:'readwrite' });
+        const sub = await root.getDirectoryHandle(LOG.subName, { create:true });   // 선택한 폴더 안에 하위 폴더 생성
+        LOG.fileHandle = await sub.getFileHandle('방송로그.txt', { create:true });
+        LOG.dir = root; LOG.saveMode = 'folder';
+      }catch(err){
+        if(err && err.name==='AbortError'){ toast('폴더를 고르지 않아 방송 시작을 취소했어요'); return; }
+        toast('폴더에 접근하지 못했어요. 로그는 메모리에 쌓고 종료 시 txt로 내려받아요');
+      }
+    }
+    LOG.on = true; LOG.startedAt = now;
+    LOG.text = '===== 방송 로그 =====\r\n방송 시작: '+fmtDate(now)+' '+fmtClock(now)+'\r\n'
+      + '곡이 끝나거나 다른 곡으로 넘어갈 때마다 아래에 기록돼요.\r\n------------------------------------------\r\n\r\n';
+    bcStartTs = 0; bcStart();                                   // 총 방송 경과시간도 지금부터
+    const curIt = itemById(Q.curId);
+    if(curIt && Q.state!=='stopped'){ logBegin(curIt); }       // 이미 재생 중인 곡이 있으면 그 곡부터 기록
+    $('#liveBtn').classList.add('on'); $('#liveBtn').textContent = '■ 방송종료';
+    logFlush();
+    toast(LOG.saveMode==='folder'
+      ? '방송 시작! 선택한 폴더 안의 "'+LOG.subName+'" 폴더에 로그를 저장해요'
+      : '방송 시작! (이 브라우저는 폴더 저장을 지원하지 않아 종료 시 txt를 내려받아요)');
+  }
+  async function liveStop(){
+    logFinish();
+    const end = new Date();
+    LOG.text += '------------------------------------------\r\n방송 종료: '+fmtDate(end)+' '+fmtClock(end)+'  (총 '+LOG.n+'곡 기록)\r\n';
+    LOG.on = false;
+    await logFlush();
+    $('#liveBtn').classList.remove('on'); $('#liveBtn').textContent = '▶ 방송시작';
+    if(LOG.saveMode!=='folder') logDownload();
+    toast(LOG.saveMode==='folder' ? '방송 종료. 로그 저장 완료 ('+LOG.n+'곡)' : '방송 종료. 로그 txt를 내려받았어요 ('+LOG.n+'곡)');
+  }
+  $('#liveBtn').addEventListener('click', ()=>{
+    if(!LOG.on){ liveStart(); return; }
+    if(confirm('방송을 종료하고 로그를 마무리할까요?')) liveStop();
+  });
+
   function updateNowPlaying(){
     const it = itemById(Q.curId);
     const icon = Q.state==='playing' ? '▶' : (Q.state==='paused' ? '⏸' : '⏹');
-    const txt = it ? `${icon} ${it.title}${it.requester ? ' · 신청 '+it.requester : ''}` : '재생 대기';
+    const num = it ? Q.items.indexOf(it)+1 : 0;
+    const txt = it ? `${icon} ${num}번 · ${it.title}${it.requester ? ' · 신청 '+it.requester : ''}` : '재생 대기';
     $('#qNow').textContent = txt;
     $('#mtTitle').textContent = txt;
     const playing = Q.state==='playing';
@@ -2161,6 +2347,7 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
     const wasCur = id===Q.curId, wasPlaying = Q.state==='playing';
     if(Q.editId===id) qCloseEdit();
     if(Q.nextId===id) Q.nextId = null;
+    Q.resv = Q.resv.filter(x=>x!==id);
     Q.history = Q.history.filter(h=>h!==id);
     Q.items = Q.items.filter(i=>i.id!==id);
     if(it.kind==='file') URL.revokeObjectURL(it.src);
@@ -2176,7 +2363,7 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
     if(!confirm('대기열을 모두 비울까요?')) return;
     qStop(); qCloseEdit();
     Q.items.forEach(i=>{ if(i.kind==='file') URL.revokeObjectURL(i.src); });
-    Q.items = []; Q.curId = null; Q.nextId = null; Q.history = [];
+    Q.items = []; Q.curId = null; Q.nextId = null; Q.resv = []; Q.history = [];
     renderQueue();
   });
 
@@ -2194,14 +2381,23 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
     qAddMsg(n ? `대기곡 ${n}개를 섞었어요` : '섞을 대기곡이 없어요', n>0);
   });
   $('#qMode').addEventListener('change', e=>{ Q.mode = e.target.value; settings.queue.mode = Q.mode; });
+  function qScrollToCur(){
+    const row = document.querySelector('#qList .q-item.cur');
+    if(!row || $('#paneQueue').hidden) return;
+    row.scrollIntoView({ block:'center', behavior:'smooth' });
+    row.classList.remove('flash'); void row.offsetWidth; row.classList.add('flash');
+  }
+  $('#qFollow').addEventListener('change', e=>{ settings.queue.follow = e.target.checked; if(e.target.checked) qScrollToCur(); });
+  $('#qLocate').addEventListener('click', qScrollToCur);
   $('#qLoop').addEventListener('change', e=>{ Q.loop = e.target.checked; settings.queue.loop = Q.loop; });
 
   /* ---------- 다음 곡 고르기 ---------- */
   function qPickNext(){
-    if(Q.nextId!=null){
-      const f = itemById(Q.nextId); Q.nextId = null;
-      if(f && !f.failed) return f;
+    while(Q.resv.length){                       // 눌러 둔 순서대로 먼저 재생
+      const f = itemById(Q.resv.shift());
+      if(f && !f.failed){ renderResv(); return f; }
     }
+    renderResv();
     let cand = Q.items.filter(i=>!i.played && !i.failed && i.id!==Q.curId);
     if(!cand.length && Q.loop){
       const pool = Q.items.filter(i=>!i.failed);
@@ -2361,18 +2557,22 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
   }
 
   function qPlayItem(item){
+    logFinish();                       // 이전 곡 기록
     Q.token++; const tk = Q.token;
     bcStart();
     stopBackends();
     releaseStreamSource();
     Q.curId = item.id; item.played = true; item.failed = false;
+    logBegin(item);
     if(Q.nextId===item.id) Q.nextId = null;
+    Q.resv = Q.resv.filter(x=>x!==item.id);
     Q.state = 'playing'; Q.simulated = false;
     audioState.mode = 'file';
     if(item.kind==='youtube') playViaYT(item, tk); else playViaCors(item, tk);
     applyVolume();
     if(settings.playback.sync) startSlideshow();
     renderQueue();
+    if(settings.queue.follow !== false) qScrollToCur();
   }
 
   function qFail(item, msg){
@@ -2431,6 +2631,7 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
   }
 
   function qStop(){
+    logFinish();
     const was = Q.state!=='stopped';
     Q.token++;
     stopBackends();
@@ -2625,6 +2826,7 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
         }
       }catch(e){}
     }
+    if(LOG.on && LOG.cur && LOG.cur.id===Q.curId && isFinite(cur) && cur>=0 && Q.state!=='stopped') LOG.cur.pos = Math.max(LOG.cur.pos, cur);
     const curIt = itemById(Q.curId);
     if(curIt && isFinite(dur) && dur>0 && Math.abs((curIt.dur||0)-dur)>1){ curIt.dur = dur; durChanged(); }
     updateQTotal(cur);
@@ -2898,6 +3100,17 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
   $('#sensRange').addEventListener('input', e=>{ settings.spectrum.sensitivity=+e.target.value; $('#sensVal').textContent=e.target.value; });
   $('#opacRange').addEventListener('input', e=>{ settings.spectrum.opacity=e.target.value/100; $('#opacVal').textContent=e.target.value+'%'; });
   $('#mirrorToggle').addEventListener('change', e=> settings.spectrum.mirror = e.target.checked);
+  function applyStageBlur(){
+    const v = Math.max(0, Math.min(100, Math.round(+settings.stageBlur || 0)));
+    settings.stageBlur = v;
+    const el = $('#stageBlur');
+    el.classList.toggle('on', v>0);
+    const px = (v*0.6).toFixed(1)+'px';            // 100 = 60px, 거의 형태가 안 보이는 정도
+    el.style.backdropFilter = el.style.webkitBackdropFilter = 'blur('+px+')';
+    $('#blurRange').value = v; $('#blurVal').textContent = v;
+  }
+  window.applyStageBlur = applyStageBlur;
+  $('#blurRange').addEventListener('input', e=>{ settings.stageBlur = +e.target.value; applyStageBlur(); });
   $('#ytSpecToggle').addEventListener('change', e=>{ settings.ytSpectrum = e.target.checked; });
   $('#specSize').addEventListener('input', e=>{ settings.spectrum.size=+e.target.value; $('#specSizeVal').textContent=e.target.value+'%'; });
   $('#specGlow').addEventListener('input', e=>{ settings.spectrum.glow=+e.target.value; $('#specGlowVal').textContent=e.target.value+'%'; });
@@ -2954,7 +3167,7 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
      설정 저장 / 불러오기 / JSON
   ============================================================ */
   function collectSettings(){
-    settings.queue = Object.assign({mode:'sequential', loop:true}, settings.queue || {});
+    settings.queue = Object.assign({mode:'sequential', loop:true, follow:true}, settings.queue || {});
     settings.queue.urls = Q.items.filter(i=>i.kind!=='file').map(i=>({kind:i.kind, src:i.src, ytId:i.ytId, title:i.title, requester:i.requester, lyrics:i.lyrics, titleEdited:i.titleEdited, dur:i.dur>0 ? Math.round(i.dur) : 0}));
     return JSON.parse(JSON.stringify(settings));
   }
@@ -2997,6 +3210,7 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
     if(typeof settings.spectrum.size!=='number') settings.spectrum.size=100;
     if(typeof settings.spectrum.glow!=='number') settings.spectrum.glow=100;
     settings.ytSpectrum = !!settings.ytSpectrum;
+    if(window.applyStageBlur) window.applyStageBlur();
     if(settings.ytMode!=='stage') settings.ytMode = 'popup';
     if(window.ytApplyMode) window.ytApplyMode();
     $('#ytSpecToggle').checked = settings.ytSpectrum;
@@ -3019,8 +3233,10 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
     applyChatEmbed();
 
     // 신청곡 대기열 (불러온 주소는 기존 대기열에 이어 붙이고, 이미 있는 곡은 건너뜀)
-    settings.queue = Object.assign({mode:'sequential', loop:true, urls:[]}, settings.queue || {});
+    settings.queue = Object.assign({mode:'sequential', loop:true, follow:true, urls:[]}, settings.queue || {});
     Q.mode = settings.queue.mode; Q.loop = settings.queue.loop;
+    settings.queue.follow = settings.queue.follow !== false;
+    $('#qFollow').checked = settings.queue.follow;
     $('#qMode').value = Q.mode; $('#qLoop').checked = Q.loop;
     qRestoreUrls(settings.queue.urls || []);
     applyVolume();
