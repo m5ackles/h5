@@ -394,6 +394,12 @@
     display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;
     padding:7px 8px;border:1px solid var(--border-soft);border-radius:8px;background:var(--panel-raised);
   }
+  .q-item{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
+  .q-item .q-req{-webkit-user-select:text;user-select:text;}
+  .q-item.pressing{border-color:var(--amber-dim);}
+  .q-item.dragging{position:relative;z-index:20;opacity:.92;box-shadow:0 8px 24px #000a;border-color:var(--amber);cursor:grabbing;}
+  .q-item.drop-before{box-shadow:0 -3px 0 0 var(--amber);}
+  .q-item.drop-after{box-shadow:0 3px 0 0 var(--amber);}
   .q-item.cur{border-color:var(--amber);background:#241a08;}
   .q-item.done{opacity:.5;}
   .q-item.fail{border-color:#5A2A2A;}
@@ -2006,6 +2012,83 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
     qAddMsg(files.length ? `내 파일 ${files.length}곡 추가됨` : '음악 파일을 찾지 못했어요', files.length>0);
   });
 
+  /* ---------- 신청곡 순서 바꾸기: ▲▼ 버튼 / 길게 눌러 끌기 ---------- */
+  function qMove(id, to){
+    const from = Q.items.findIndex(i=>i.id===id);
+    if(from<0) return;
+    to = Math.max(0, Math.min(Q.items.length-1, to));
+    if(to===from) return;
+    const [it] = Q.items.splice(from,1);
+    Q.items.splice(to,0,it);
+    renderQueue();
+    const row = $('#qList').children[to];
+    if(row && row.scrollIntoView) row.scrollIntoView({ block:'nearest' });
+  }
+  (function(){
+    const list = $('#qList');
+    let press = null, drag = null;
+    const scroller = ()=>{ let e = list; while(e && e!==document.body){ const o = getComputedStyle(e).overflowY; if((o==='auto'||o==='scroll') && e.scrollHeight>e.clientHeight+1) return e; e = e.parentElement; } return document.scrollingElement; };
+    function targetIndex(y, from){
+      const rows = [...list.children].filter((r,i)=>i!==from && r.classList.contains('q-item'));
+      let n = 0;
+      rows.forEach(r=>{ const b = r.getBoundingClientRect(); if(y > b.top + b.height/2) n++; });
+      return n;      // 끌고 있는 곡을 뺀 목록에서의 새 위치
+    }
+    function mark(to, from){
+      [...list.children].forEach(r=>r.classList.remove('drop-before','drop-after'));
+      const others = [...list.children].filter((r,i)=>i!==from);
+      if(!others.length) return;
+      if(to>=others.length) others[others.length-1].classList.add('drop-after'); else others[to].classList.add('drop-before');
+    }
+    function endPress(){ if(press){ clearTimeout(press.timer); if(press.row) press.row.classList.remove('pressing'); press = null; } }
+    function endDrag(commit){
+      if(!drag) return;
+      clearInterval(drag.auto);
+      const d = drag; drag = null;
+      d.row.classList.remove('dragging'); d.row.style.transform = '';
+      [...list.children].forEach(r=>r.classList.remove('drop-before','drop-after'));
+      if(commit && d.to!==d.from){ const id = Q.items[d.from] && Q.items[d.from].id; if(id!=null) qMove(id, d.to); }
+    }
+    list.addEventListener('pointerdown', e=>{
+      if(e.button>0 || $('#paneQueue').classList.contains('onair')) return;
+      const row = e.target.closest && e.target.closest('.q-item');
+      if(!row || e.target.closest('input,button,textarea,.q-lyr')) return;
+      endPress();
+      const from = [...list.children].indexOf(row);
+      press = { row, from, x:e.clientX, y:e.clientY, id:e.pointerId,
+        timer:setTimeout(()=>{
+          if(!press) return;
+          row.classList.remove('pressing'); row.classList.add('dragging');
+          try{ list.setPointerCapture(press.id); }catch(err){}
+          drag = { row, from, to:from, startY:press.y, auto:null, y:press.y };
+          press = null;
+          if(navigator.vibrate) try{ navigator.vibrate(15); }catch(err){}
+          const sc = scroller();
+          drag.auto = setInterval(()=>{            // 위·아래 가장자리에서 목록 자동 스크롤
+            if(!drag || !sc) return;
+            const b = sc===document.scrollingElement ? { top:0, bottom:window.innerHeight } : sc.getBoundingClientRect();
+            if(drag.y < b.top+50) sc.scrollTop -= 14; else if(drag.y > b.bottom-50) sc.scrollTop += 14;
+          }, 30);
+        }, 450) };
+      row.classList.add('pressing');
+    });
+    list.addEventListener('pointermove', e=>{
+      if(press){
+        if(Math.hypot(e.clientX-press.x, e.clientY-press.y) > 10) endPress();   // 길게 누르기 전에 움직이면(스크롤) 취소
+        return;
+      }
+      if(!drag) return;
+      drag.y = e.clientY;
+      drag.row.style.transform = 'translateY('+(e.clientY - drag.startY)+'px)';
+      drag.to = targetIndex(e.clientY, drag.from);
+      mark(drag.to, drag.from);
+    });
+    list.addEventListener('pointerup', ()=>{ endPress(); endDrag(true); });
+    list.addEventListener('pointercancel', ()=>{ endPress(); endDrag(false); });
+    list.addEventListener('contextmenu', e=>{ if(press || drag) e.preventDefault(); });
+    list.addEventListener('touchmove', e=>{ if(drag && e.cancelable) e.preventDefault(); }, { passive:false });
+  })();
+
   /* ---------- 재생 순서 리스트: 재생한 곡(자동·직접·예약)을 순서대로 계속 쌓고, 예약한 곡은 그 뒤에 이어 붙음 ---------- */
   //  Q.order 항목: { id, how:'resv'|'auto'|'direct', state:'pending'|'playing'|'played', snap:{title,requester,dur,kind,src} }
   const snapOf = it=>({ title:it.title, requester:it.requester, dur:it.dur, kind:it.kind, src:it.src });
@@ -2151,10 +2234,12 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
         b.className = 'q-ibtn'; b.textContent = txt; b.title = title;
         b.addEventListener('click', fn); acts.appendChild(b);
       };
+      mk('▲','위로 (윗곡과 자리 바꾸기)',()=>qMove(it.id, idx-1));
+      mk('▼','아래로 (아랫곡과 자리 바꾸기)',()=>qMove(it.id, idx+1));
       mk('▶','지금 재생',()=>qPlayNow(it.id));
       mk(rvPos>=0 ? '📌' : '⤒', rvPos>=0 ? '예약 취소' : '재생 예약 (누른 순서대로 재생)', ()=>qToggleResv(it.id));
       mk('✎','제목·가사 수정',()=>qOpenEdit(it.id));
-      mk('✕','삭제',()=>qRemove(it.id));
+      mk('✕','삭제',()=>{ if(confirm('"'+it.title+'"\n정말 삭제할까요?')) qRemove(it.id); });
 
       row.appendChild(badge); row.appendChild(mid); row.appendChild(acts);
       list.appendChild(row);
