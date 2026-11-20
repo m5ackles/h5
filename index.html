@@ -2159,7 +2159,7 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
         };
         mk('↑','위로',()=>swap(-1));
         mk('↓','아래로',()=>swap(1));
-        mk('✕','예약 취소',()=>qToggleResv(L.o.id));
+        mk('✕','예약 취소',()=>{ if(confirm('이 곡의 예약을 취소할까요?\n(곡은 목록에 그대로 남아요)')) qToggleResv(L.o.id); });
         row.appendChild(acts);
       }
       if(L.state==='playing') curRow = row;
@@ -2169,6 +2169,9 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
     else box.scrollTop = prevTop;
   }
   $('#qResvClear').addEventListener('click', ()=>{
+    const n = Q.order.filter(o=>o.state==='pending').length;
+    if(!n){ toast('취소할 예약이 없어요'); return; }
+    if(!confirm('예약한 '+n+'곡을 모두 취소할까요? (이미 재생한 기록과 곡 목록은 그대로예요)')) return;
     Q.resv = []; Q.order = Q.order.filter(o=>o.state!=='pending'); renderQueue();
   });
   $('#qOrderReset').addEventListener('click', ()=>{
@@ -2234,12 +2237,12 @@ function drawSpecRect(x, y, w, h, cover, cw, ch, colorStr, v) {
         b.className = 'q-ibtn'; b.textContent = txt; b.title = title;
         b.addEventListener('click', fn); acts.appendChild(b);
       };
-      mk('▲','위로 (윗곡과 자리 바꾸기)',()=>qMove(it.id, idx-1));
-      mk('▼','아래로 (아랫곡과 자리 바꾸기)',()=>qMove(it.id, idx+1));
       mk('▶','지금 재생',()=>qPlayNow(it.id));
       mk(rvPos>=0 ? '📌' : '⤒', rvPos>=0 ? '예약 취소' : '재생 예약 (누른 순서대로 재생)', ()=>qToggleResv(it.id));
       mk('✎','제목·가사 수정',()=>qOpenEdit(it.id));
       mk('✕','삭제',()=>{ if(confirm('"'+it.title+'"\n정말 삭제할까요?')) qRemove(it.id); });
+      mk('▲','위로 (윗곡과 자리 바꾸기)',()=>qMove(it.id, idx-1));
+      mk('▼','아래로 (아랫곡과 자리 바꾸기)',()=>qMove(it.id, idx+1));
 
       row.appendChild(badge); row.appendChild(mid); row.appendChild(acts);
       list.appendChild(row);
